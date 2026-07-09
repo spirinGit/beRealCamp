@@ -21,6 +21,16 @@ export interface Reward {
   items?: RewardItem[]
 }
 
+export function useWorkerReward() {
+  return useQuery({
+    queryKey: ['reward-mine'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<Reward>('/rewards/mine')
+      return data
+    },
+  })
+}
+
 export function useRewards() {
   const { user } = useAuth()
   return useQuery({

@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { MorePage } from '../pages/admin/MorePage'
 import { LoginPage } from '../pages/auth/LoginPage'
 import { AuditPage } from '../pages/admin/AuditPage'
 import { CampsPage } from '../pages/admin/CampsPage'
@@ -17,6 +18,7 @@ import { MySquadsPage } from '../pages/leader/MySquadsPage'
 import { SpendCoinsPage } from '../pages/worker/SpendCoinsPage'
 import { AdminLayout } from '../shared/ui/AdminLayout'
 import { LeaderLayout } from '../shared/ui/LeaderLayout'
+import { WorkerLayout } from '../shared/ui/WorkerLayout'
 import { RequireAuth } from '../shared/ui/RequireAuth'
 
 export const appRouter = createBrowserRouter([
@@ -38,6 +40,7 @@ export const appRouter = createBrowserRouter([
           { path: '/admin/rules', element: <RulesPage /> },
           { path: '/admin/rewards', element: <RewardsPage /> },
           { path: '/admin/audit', element: <AuditPage /> },
+          { path: '/admin/more', element: <MorePage /> },
         ],
       },
       {
@@ -48,7 +51,12 @@ export const appRouter = createBrowserRouter([
           { path: '/leader/child-history', element: <ChildHistoryPage /> },
         ],
       },
-      { path: '/worker/spend-coins', element: <SpendCoinsPage /> },
+      {
+        element: <WorkerLayout />,
+        children: [
+          { path: '/worker/spend-coins', element: <SpendCoinsPage /> },
+        ],
+      },
     ],
   },
 

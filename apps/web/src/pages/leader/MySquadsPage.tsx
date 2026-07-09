@@ -1,10 +1,9 @@
 import { useState } from 'react'
-import { useAuth } from '../../features/auth/AuthContext'
 import { useChildren, useChildBalance } from '../../features/children'
 import { type Squad, useSquads } from '../../features/squads'
 import { type CoinRule, useCoinRules, useEarnTalents } from '../../features/transactions'
 
-// --- Earn Sheet ---
+// --- Earn Sheet (redesigned) ---
 function EarnSheet({
   child,
   rules,
@@ -20,98 +19,121 @@ function EarnSheet({
   const [comment, setComment] = useState('')
   const [mode, setMode] = useState<'preset' | 'custom'>('preset')
   const { mutate, isPending } = useEarnTalents()
-  const { data: balance } = useChildBalance(child.id)
+  const { data: balance = 0 } = useChildBalance(child.id)
+
+  const earnAmount = mode === 'preset' ? (selected?.points ?? 0) : Number(customAmount) || 0
+  const canSubmit = mode === 'preset' ? !!selected : !!customReason && earnAmount > 0
 
   function handleSubmit() {
-    const amount = mode === 'preset' ? selected!.points : Number(customAmount)
+    const amount = earnAmount
     const reason = mode === 'preset' ? selected!.label : customReason
-    if (!amount || !reason) return
-
     mutate({ childId: child.id, amount, reason, comment: comment || undefined }, { onSuccess: onClose })
   }
-
-  const canSubmit = mode === 'preset' ? !!selected : !!customReason && !!customAmount && Number(customAmount) > 0
 
   return (
     <div className="fixed inset-0 z-30 flex flex-col justify-end">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-t-3xl max-h-[90dvh] overflow-y-auto">
-        <div className="p-6 pb-2">
-          <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
-          <div className="flex items-center justify-between mb-1">
-            <h2 className="text-xl font-bold text-gray-900">
-              {child.firstName} {child.lastName}
-            </h2>
-            <span className="text-sm font-semibold text-violet-600">
-              ⭐ {balance ?? 0}
-            </span>
-          </div>
-          <p className="text-sm text-gray-400 mb-4">Нарахувати таланти</p>
+      <div className="relative bg-white rounded-t-3xl max-h-[92dvh] overflow-y-auto">
 
-          {/* Mode toggle */}
-          <div className="flex gap-2 mb-4">
+        {/* Header з балансом */}
+        <div className="px-6 pt-6 pb-4">
+          <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
+
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Нарахування</p>
+              <h2 className="text-2xl font-bold text-gray-900">{child.firstName}</h2>
+              <p className="text-lg font-semibold text-gray-600">{child.lastName}</p>
+            </div>
+            <div className="bg-violet-50 rounded-2xl px-4 py-3 text-right">
+              <p className="text-xs text-violet-400 mb-0.5">Баланс</p>
+              <p className="text-xl font-bold text-violet-600">⭐ {balance}</p>
+              {earnAmount > 0 && (
+                <p className="text-xs text-green-500 font-medium mt-0.5">→ {balance + earnAmount}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Mode tabs */}
+          <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
             <button onClick={() => setMode('preset')}
-              className={`flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-colors ${
-                mode === 'preset' ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-500'
+              className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+                mode === 'preset' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500'
               }`}>
               Пресет
             </button>
             <button onClick={() => setMode('custom')}
-              className={`flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-colors ${
-                mode === 'custom' ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-500'
+              className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
+                mode === 'custom' ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500'
               }`}>
               Власне
             </button>
           </div>
         </div>
 
-        <div className="px-6 pb-6 space-y-3">
+        <div className="px-6 pb-8 space-y-4">
           {mode === 'preset' ? (
-            <div className="space-y-2">
-              {rules.map((rule) => (
-                <button key={rule.id} onClick={() => setSelected(rule)}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-colors text-left ${
-                    selected?.id === rule.id
-                      ? 'border-violet-500 bg-violet-50'
-                      : 'border-gray-100 bg-gray-50'
-                  }`}>
-                  <span className="text-sm font-medium text-gray-800">{rule.label}</span>
-                  <span className="text-sm font-bold text-violet-600">+{rule.points}</span>
-                </button>
-              ))}
-              {rules.length === 0 && (
-                <p className="text-sm text-gray-400 text-center py-4">
-                  Правил нарахування ще немає. Попросіть адміна додати.
-                </p>
+            <>
+              {rules.length === 0 ? (
+                <div className="text-center py-6 text-gray-400">
+                  <p className="text-3xl mb-2">⭐</p>
+                  <p className="text-sm">Правил нарахування ще немає</p>
+                  <p className="text-xs mt-1">Попросіть адміна додати</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {rules.map((rule) => (
+                    <button key={rule.id} onClick={() => setSelected(rule === selected ? null : rule)}
+                      className={`flex flex-col items-start p-3.5 rounded-2xl border-2 transition-all text-left active:scale-95 ${
+                        selected?.id === rule.id
+                          ? 'border-violet-500 bg-violet-600 shadow-md'
+                          : 'border-gray-100 bg-gray-50'
+                      }`}>
+                      <span className={`text-xl font-bold mb-1 ${selected?.id === rule.id ? 'text-white' : 'text-violet-600'}`}>
+                        +{rule.points}
+                      </span>
+                      <span className={`text-xs leading-snug ${selected?.id === rule.id ? 'text-violet-100' : 'text-gray-600'}`}>
+                        {rule.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               )}
-            </div>
+            </>
           ) : (
             <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Причина *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Причина *</label>
                 <input value={customReason} onChange={(e) => setCustomReason(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
                   placeholder="Допоміг приготувати обід..." />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Кількість талантів *</label>
-                <input type="number" min="1" value={customAmount} onChange={(e) => setCustomAmount(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
-                  placeholder="500" />
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Кількість талантів *</label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-violet-500 font-bold">+</span>
+                  <input type="number" min="1" value={customAmount} onChange={(e) => setCustomAmount(e.target.value)}
+                    className="w-full pl-8 pr-4 py-3 rounded-xl border border-gray-200 text-base font-semibold focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    placeholder="1000" />
+                </div>
               </div>
             </div>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Коментар</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Коментар</label>
             <input value={comment} onChange={(e) => setComment(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
               placeholder="Необов'язково" />
           </div>
 
           <button onClick={handleSubmit} disabled={!canSubmit || isPending}
-            className="w-full bg-violet-600 text-white font-semibold py-3.5 rounded-xl text-base disabled:opacity-40 active:scale-95 transition-transform">
-            {isPending ? 'Збереження...' : `Нарахувати ${mode === 'preset' && selected ? `+${selected.points}` : customAmount ? `+${customAmount}` : ''}`}
+            className={`w-full font-bold py-4 rounded-2xl text-base transition-all active:scale-95 ${
+              canSubmit && !isPending
+                ? 'bg-gradient-to-r from-violet-600 to-violet-500 text-white shadow-lg shadow-violet-200'
+                : 'bg-gray-100 text-gray-400'
+            }`}>
+            {isPending ? 'Збереження...' : canSubmit ? `Нарахувати +${earnAmount} ⭐` : 'Оберіть готову нагороду або створіть власну'}
           </button>
         </div>
       </div>
@@ -158,7 +180,6 @@ function SquadChildren({
 
 // --- Main Page ---
 export function MySquadsPage() {
-  const { user } = useAuth()
   const { data: squads, isLoading } = useSquads()
   const { data: rules = [] } = useCoinRules()
   const [openSquad, setOpenSquad] = useState<string | null>(null)

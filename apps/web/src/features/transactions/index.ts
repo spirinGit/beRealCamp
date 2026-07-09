@@ -48,6 +48,45 @@ export function useTransactions(childId?: string) {
   })
 }
 
+export function useSpendTalents() {
+  const { user } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: {
+      childId: string
+      amount: number
+      reason: string
+      comment?: string
+    }) => {
+      const { data } = await apiClient.post('/transactions/spend', {
+        ...body,
+        campId: user!.campId,
+      })
+      return data
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['balance', vars.childId] })
+      qc.invalidateQueries({ queryKey: ['transactions'] })
+    },
+  })
+}
+
+export function useSearchChildren(q: string) {
+  const { user } = useAuth()
+  return useQuery({
+    queryKey: ['children-search', q],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{
+        id: string; firstName: string; lastName: string
+        squadId: string; campId: string; photoUrl: string | null; dateOfBirth: string
+      }[]>(`/children/search?q=${encodeURIComponent(q)}&campId=${user?.campId}`)
+      return data
+    },
+    enabled: q.trim().length >= 2,
+    staleTime: 10_000,
+  })
+}
+
 export function useEarnTalents() {
   const { user } = useAuth()
   const qc = useQueryClient()

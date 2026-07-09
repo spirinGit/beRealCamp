@@ -6,7 +6,7 @@ const navItems = [
   { to: '/admin/squads', icon: '🏕️', label: 'Загони' },
   { to: '/admin/children', icon: '👧', label: 'Діти' },
   { to: '/admin/users', icon: '👤', label: 'Юзери' },
-  { to: '/admin/rewards', icon: '🛍️', label: 'Інше' },
+  { to: '/admin/more', icon: '⚙️', label: 'Інше' },
 ]
 
 export function AdminLayout() {
