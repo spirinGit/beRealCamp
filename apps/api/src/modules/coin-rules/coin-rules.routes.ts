@@ -1,0 +1,61 @@
+import type { FastifyInstance } from 'fastify'
+import { z } from 'zod'
+import { requireAdmin, requireAdminOrLeader } from '../../lib/auth.js'
+import {
+  createCoinRule,
+  getCoinRuleById,
+  listCoinRules,
+  updateCoinRule,
+} from './coin-rules.service.js'
+
+const createBody = z.object({
+  campId: z.string().uuid(),
+  key: z.string().min(1),
+  label: z.string().min(1),
+  points: z.number().int(),
+})
+
+const updateBody = z.object({
+  key: z.string().min(1).optional(),
+  label: z.string().min(1).optional(),
+  points: z.number().int().optional(),
+})
+
+export async function registerCoinRulesRoutes(app: FastifyInstance) {
+  // GET /coin-rules?campId=  — Admin і Leader бачать правила (BR-025)
+  app.get('/', { preHandler: [requireAdminOrLeader] }, async (request, reply) => {
+    const { campId } = request.query as { campId?: string }
+    const effectiveCampId = campId ?? request.user.campId
+    return listCoinRules(app, effectiveCampId)
+  })
+
+  // POST /coin-rules  — Admin створює правило (BR-025)
+  app.post('/', { preHandler: [requireAdmin] }, async (request, reply) => {
+    const parsed = createBody.safeParse(request.body)
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'Invalid input', details: parsed.error.flatten() })
+    }
+    const rule = await createCoinRule(app, parsed.data)
+    return reply.code(201).send(rule)
+  })
+
+  // PATCH /coin-rules/:id  — Admin редагує (BR-025)
+  app.patch('/:id', { preHandler: [requireAdmin] }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const parsed = updateBody.safeParse(request.body)
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid input' })
+    const rule = await updateCoinRule(app, id, parsed.data)
+    if (!rule) return reply.code(404).send({ error: 'Rule not found' })
+    return rule
+  })
+
+  // PATCH /coin-rules/:id/toggle  — вмикає/вимикає правило (BR-025)
+  app.patch('/:id/toggle', { preHandler: [requireAdmin] }, async (request, reply) => {
+    const { id } = request.params as { id: string }
+    const existing = await getCoinRuleById(app, id)
+    if (!existing) return reply.code(404).send({ error: 'Rule not found' })
+    const rule = await updateCoinRule(app, id, { isActive: !existing.isActive })
+    return rule
+  })
+}
+
