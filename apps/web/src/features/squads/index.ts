@@ -19,14 +19,14 @@ export interface SquadLeader {
 }
 
 export function useSquads() {
-  const { user } = useAuth()
+  const { effectiveCampId } = useAuth()
   return useQuery({
-    queryKey: ['squads', user?.campId],
+    queryKey: ['squads', effectiveCampId],
     queryFn: async () => {
-      const { data } = await apiClient.get<Squad[]>(`/squads?campId=${user?.campId}`)
+      const { data } = await apiClient.get<Squad[]>(`/squads?campId=${effectiveCampId}`)
       return data
     },
-    enabled: !!user?.campId,
+    enabled: !!effectiveCampId,
   })
 }
 
@@ -42,13 +42,13 @@ export function useSquadLeaders(squadId: string) {
 }
 
 export function useCreateSquad() {
-  const { user } = useAuth()
+  const { effectiveCampId } = useAuth()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body: { name: string; color: string; description?: string }) => {
       const { data } = await apiClient.post<Squad>('/squads', {
         ...body,
-        campId: user!.campId,
+        campId: effectiveCampId!,
       })
       return data
     },
@@ -76,5 +76,16 @@ export function useRemoveLeader(squadId: string) {
   })
 }
 
-
+export function useRenameSquad(squadId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (name: string) => {
+      const { data } = await apiClient.patch<Squad>(`/squads/${squadId}`, { name })
+      return data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['squads'] })
+    },
+  })
+}
 

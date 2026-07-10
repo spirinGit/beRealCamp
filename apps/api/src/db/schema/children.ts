@@ -12,11 +12,11 @@ export const children = pgTable('children', {
     .notNull(),
   firstName: text('first_name').notNull(),
   lastName: text('last_name').notNull(),
+  parentName: text('parent_name'),
   photoUrl: text('photo_url'),
   dateOfBirth: date('date_of_birth').notNull(),
   gender: text('gender').notNull(),
-  parentPhone: text('parent_phone').notNull(),
+  parentPhone: text('parent_phone'),
   medicalNotes: text('medical_notes'),
   createdAt: timestamp('created_at', { withTimezone: false }).defaultNow().notNull(),
 })
-

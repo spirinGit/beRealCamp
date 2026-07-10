@@ -1,4 +1,5 @@
 ﻿import { useState } from 'react'
+import { useChildren } from '../../features/children'
 import {
   type Squad,
   useAssignLeader,
@@ -18,6 +19,7 @@ const COLORS = [
 // --- Squad Detail Sheet ---
 function SquadDetailSheet({ squad, onClose }: { squad: Squad; onClose: () => void }) {
   const { data: leaders } = useSquadLeaders(squad.id)
+  const { data: children, isLoading: isChildrenLoading } = useChildren(squad.id)
   const { data: users } = useUsers()
   const { mutate: assign, isPending: assigning } = useAssignLeader(squad.id)
   const { mutate: remove } = useRemoveLeader(squad.id)
@@ -61,6 +63,30 @@ function SquadDetailSheet({ squad, onClose }: { squad: Squad; onClose: () => voi
                   >
                     ✕
                   </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Squad children */}
+        <div>
+          <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Діти загону</p>
+          {isChildrenLoading ? (
+            <div className="space-y-2">
+              <div className="h-11 bg-gray-100 rounded-xl animate-pulse" />
+              <div className="h-11 bg-gray-100 rounded-xl animate-pulse" />
+            </div>
+          ) : children?.length === 0 ? (
+            <p className="text-sm text-gray-400 italic">Дітей у загоні ще немає</p>
+          ) : (
+            <div className="space-y-2">
+              {children?.map((child) => (
+                <div key={child.id} className="flex items-center gap-2 bg-gray-50 rounded-xl px-3 py-2.5">
+                  <span className="text-lg">{child.gender === 'male' ? '👦' : '👧'}</span>
+                  <span className="text-sm font-medium text-gray-800">
+                    {child.firstName} {child.lastName}
+                  </span>
                 </div>
               ))}
             </div>

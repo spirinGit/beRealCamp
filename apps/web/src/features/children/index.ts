@@ -8,25 +8,26 @@ export interface Child {
   squadId: string
   firstName: string
   lastName: string
+  parentName: string | null
   photoUrl: string | null
   dateOfBirth: string
   gender: 'male' | 'female'
-  parentPhone: string
+  parentPhone: string | null
   medicalNotes: string | null
   createdAt: string
 }
 
 export function useChildren(squadId?: string) {
-  const { user } = useAuth()
+  const { effectiveCampId } = useAuth()
   return useQuery({
-    queryKey: ['children', user?.campId, squadId],
+    queryKey: ['children', effectiveCampId, squadId],
     queryFn: async () => {
-      const params = new URLSearchParams({ campId: user!.campId })
+      const params = new URLSearchParams({ campId: effectiveCampId! })
       if (squadId) params.set('squadId', squadId)
       const { data } = await apiClient.get<Child[]>(`/children?${params}`)
       return data
     },
-    enabled: !!user?.campId,
+    enabled: !!effectiveCampId,
   })
 }
 
@@ -42,21 +43,22 @@ export function useChildBalance(childId: string) {
 }
 
 export function useCreateChild() {
-  const { user } = useAuth()
+  const { effectiveCampId } = useAuth()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body: {
       squadId: string
       firstName: string
       lastName: string
+      parentName?: string
       dateOfBirth: string
       gender: 'male' | 'female'
-      parentPhone: string
+      parentPhone?: string
       medicalNotes?: string
     }) => {
       const { data } = await apiClient.post<Child>('/children', {
         ...body,
-        campId: user!.campId,
+        campId: effectiveCampId!,
       })
       return data
     },
@@ -64,4 +66,30 @@ export function useCreateChild() {
   })
 }
 
+export function useMoveChildToSquad() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ childId, squadId }: { childId: string; squadId: string }) => {
+      const { data } = await apiClient.patch<Child>(`/children/${childId}/squad`, { squadId })
+      return data
+    },
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['children'] })
+      qc.invalidateQueries({ queryKey: ['balance', vars.childId] })
+    },
+  })
+}
 
+export function useDeleteChild() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (childId: string) => {
+      await apiClient.delete(`/children/${childId}`)
+    },
+    onSuccess: (_, childId) => {
+      qc.invalidateQueries({ queryKey: ['children'] })
+      qc.invalidateQueries({ queryKey: ['transactions'] })
+      qc.removeQueries({ queryKey: ['balance', childId] })
+    },
+  })
+}

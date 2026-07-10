@@ -23,33 +23,45 @@ export interface CoinRule {
 }
 
 export function useCoinRules() {
-  const { user } = useAuth()
+  const { effectiveCampId } = useAuth()
   return useQuery({
-    queryKey: ['coin-rules', user?.campId],
+    queryKey: ['coin-rules', effectiveCampId],
     queryFn: async () => {
-      const { data } = await apiClient.get<CoinRule[]>(`/coin-rules?campId=${user?.campId}`)
-      return data.filter((r) => r.isActive)
+      const { data } = await apiClient.get<CoinRule[]>(`/coin-rules?campId=${effectiveCampId}`)
+      return data.filter((r) => r.isActive && r.points > 0)
     },
-    enabled: !!user?.campId,
+    enabled: !!effectiveCampId,
+  })
+}
+
+export function usePenaltyRules() {
+  const { effectiveCampId } = useAuth()
+  return useQuery({
+    queryKey: ['penalty-rules', effectiveCampId],
+    queryFn: async () => {
+      const { data } = await apiClient.get<CoinRule[]>(`/coin-rules?campId=${effectiveCampId}`)
+      return data.filter((r) => r.isActive && r.points < 0)
+    },
+    enabled: !!effectiveCampId,
   })
 }
 
 export function useTransactions(childId?: string) {
-  const { user } = useAuth()
+  const { effectiveCampId } = useAuth()
   return useQuery({
-    queryKey: ['transactions', user?.campId, childId],
+    queryKey: ['transactions', effectiveCampId, childId],
     queryFn: async () => {
-      const params = new URLSearchParams({ campId: user!.campId })
+      const params = new URLSearchParams({ campId: effectiveCampId! })
       if (childId) params.set('childId', childId)
       const { data } = await apiClient.get<Transaction[]>(`/transactions?${params}`)
       return data
     },
-    enabled: !!user?.campId,
+    enabled: !!effectiveCampId,
   })
 }
 
 export function useSpendTalents() {
-  const { user } = useAuth()
+  const { effectiveCampId } = useAuth()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body: {
@@ -60,7 +72,7 @@ export function useSpendTalents() {
     }) => {
       const { data } = await apiClient.post('/transactions/spend', {
         ...body,
-        campId: user!.campId,
+        campId: effectiveCampId!,
       })
       return data
     },
@@ -72,23 +84,23 @@ export function useSpendTalents() {
 }
 
 export function useSearchChildren(q: string) {
-  const { user } = useAuth()
+  const { effectiveCampId } = useAuth()
   return useQuery({
     queryKey: ['children-search', q],
     queryFn: async () => {
       const { data } = await apiClient.get<{
         id: string; firstName: string; lastName: string
         squadId: string; campId: string; photoUrl: string | null; dateOfBirth: string
-      }[]>(`/children/search?q=${encodeURIComponent(q)}&campId=${user?.campId}`)
+      }[]>(`/children/search?q=${encodeURIComponent(q)}&campId=${effectiveCampId}`)
       return data
     },
-    enabled: q.trim().length >= 2,
+    enabled: q.trim().length >= 2 && !!effectiveCampId,
     staleTime: 10_000,
   })
 }
 
 export function useEarnTalents() {
-  const { user } = useAuth()
+  const { effectiveCampId } = useAuth()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body: {
@@ -99,7 +111,7 @@ export function useEarnTalents() {
     }) => {
       const { data } = await apiClient.post('/transactions/earn', {
         ...body,
-        campId: user!.campId,
+        campId: effectiveCampId!,
       })
       return data
     },
@@ -110,3 +122,60 @@ export function useEarnTalents() {
   })
 }
 
+export function useBulkEarnTalents() {
+  const { effectiveCampId } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: {
+      childIds: string[]
+      amount: number
+      reason: string
+      comment?: string
+    }) => {
+      const requests = body.childIds.map((childId) =>
+        apiClient.post('/transactions/earn', {
+        campId: effectiveCampId!,
+          childId,
+          amount: body.amount,
+          reason: body.reason,
+          comment: body.comment,
+        }),
+      )
+      await Promise.all(requests)
+      return { count: body.childIds.length }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['balance'] })
+      qc.invalidateQueries({ queryKey: ['transactions'] })
+    },
+  })
+}
+
+export function useBulkSpendTalents() {
+  const { effectiveCampId } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: {
+      childIds: string[]
+      amount: number
+      reason: string
+      comment?: string
+    }) => {
+      const requests = body.childIds.map((childId) =>
+        apiClient.post('/transactions/spend', {
+        campId: effectiveCampId!,
+          childId,
+          amount: body.amount,
+          reason: body.reason,
+          comment: body.comment,
+        }),
+      )
+      await Promise.all(requests)
+      return { count: body.childIds.length }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['balance'] })
+      qc.invalidateQueries({ queryKey: ['transactions'] })
+    },
+  })
+}

@@ -1,17 +1,23 @@
 import { Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../features/auth/AuthContext'
-import { useWorkerReward } from '../../features/rewards'
+import { useWorkerRewards } from '../../features/rewards'
 
 export function WorkerLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const { data: reward } = useWorkerReward()
+  const { data: rewards } = useWorkerRewards()
+  const shopLabel =
+    !rewards || rewards.length === 0
+      ? '...'
+      : rewards.length === 1
+        ? rewards[0].name
+        : `${rewards.length} точки`
 
   return (
     <div className="flex flex-col min-h-dvh bg-gray-50 max-w-lg mx-auto">
       <header className="bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
         <div>
-          <p className="text-xs text-gray-400">Воркер · {reward?.name ?? '...'}</p>
+          <p className="text-xs text-gray-400">Воркер · {shopLabel}</p>
           <p className="font-semibold text-gray-900 text-sm leading-tight">
             {user?.firstName} {user?.lastName}
           </p>

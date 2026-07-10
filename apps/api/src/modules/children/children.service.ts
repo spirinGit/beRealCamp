@@ -47,10 +47,11 @@ export async function createChild(
     squadId: string
     firstName: string
     lastName: string
+    parentName?: string
     photoUrl?: string
     dateOfBirth: string
     gender: string
-    parentPhone: string
+    parentPhone?: string
     medicalNotes?: string
   },
 ) {
@@ -65,6 +66,7 @@ export async function updateChild(
     squadId: string
     firstName: string
     lastName: string
+    parentName: string
     photoUrl: string
     dateOfBirth: string
     gender: string
@@ -73,6 +75,11 @@ export async function updateChild(
   }>,
 ) {
   const [child] = await app.db.update(children).set(data).where(eq(children.id, id)).returning()
+  return child ?? null
+}
+
+export async function deleteChild(app: FastifyInstance, id: string) {
+  const [child] = await app.db.delete(children).where(eq(children.id, id)).returning()
   return child ?? null
 }
 
@@ -105,4 +112,3 @@ export async function getChildBalance(app: FastifyInstance, childId: string): Pr
     .where(eq(coinTransactions.childId, childId))
   return Number(result?.balance ?? 0)
 }
-

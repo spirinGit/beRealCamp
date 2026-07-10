@@ -21,25 +21,25 @@ export interface Reward {
   items?: RewardItem[]
 }
 
-export function useWorkerReward() {
+export function useWorkerRewards() {
   return useQuery({
-    queryKey: ['reward-mine'],
+    queryKey: ['worker-rewards-mine'],
     queryFn: async () => {
-      const { data } = await apiClient.get<Reward>('/rewards/mine')
+      const { data } = await apiClient.get<Reward[]>('/rewards/mine')
       return data
     },
   })
 }
 
 export function useRewards() {
-  const { user } = useAuth()
+  const { effectiveCampId } = useAuth()
   return useQuery({
-    queryKey: ['rewards', user?.campId],
+    queryKey: ['rewards', effectiveCampId],
     queryFn: async () => {
-      const { data } = await apiClient.get<Reward[]>(`/rewards?campId=${user?.campId}`)
+      const { data } = await apiClient.get<Reward[]>(`/rewards?campId=${effectiveCampId}`)
       return data
     },
-    enabled: !!user?.campId,
+    enabled: !!effectiveCampId,
   })
 }
 
@@ -55,13 +55,13 @@ export function useRewardDetail(id: string) {
 }
 
 export function useCreateReward() {
-  const { user } = useAuth()
+  const { effectiveCampId } = useAuth()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body: { name: string; description?: string }) => {
       const { data } = await apiClient.post<Reward>('/rewards', {
         ...body,
-        campId: user!.campId,
+        campId: effectiveCampId!,
       })
       return data
     },
@@ -79,6 +79,7 @@ export function useAssignWorker(rewardId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['rewards'] })
       qc.invalidateQueries({ queryKey: ['reward', rewardId] })
+      qc.invalidateQueries({ queryKey: ['worker-rewards-mine'] })
     },
   })
 }
@@ -103,5 +104,3 @@ export function useToggleRewardItem(rewardId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['reward', rewardId] }),
   })
 }
-
-

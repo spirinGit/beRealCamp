@@ -1,5 +1,6 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { Navigate, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../features/auth/AuthContext'
+import { useCamps } from '../../features/camps'
 
 const navItems = [
   { to: '/admin/dashboard', icon: '📊', label: 'Дашборд' },
@@ -10,8 +11,16 @@ const navItems = [
 ]
 
 export function AdminLayout() {
-  const { user, logout } = useAuth()
+  const { user, activeCampId, logout } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
+  const { data: camps = [] } = useCamps()
+
+  const activeCamp = camps.find((camp) => camp.id === activeCampId) ?? null
+
+  if (user?.role === 'Administrator' && !activeCampId && location.pathname !== '/admin/camps') {
+    return <Navigate to="/admin/camps" replace />
+  }
 
   function handleLogout() {
     logout()
@@ -23,12 +32,20 @@ export function AdminLayout() {
       {/* Top header */}
       <header className="bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
         <div>
-          <p className="text-xs text-gray-400">Адмін</p>
+          <p className="text-xs text-gray-400">
+            Адмін{activeCamp ? ` · ${activeCamp.name}` : ' · Табір не вибрано'}
+          </p>
           <p className="font-semibold text-gray-900 text-sm leading-tight">
             {user?.firstName} {user?.lastName}
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/admin/camps')}
+            className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium"
+          >
+            Табори
+          </button>
           <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded-full font-medium">
             ⛺ beRealCamp
           </span>

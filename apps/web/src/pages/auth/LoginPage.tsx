@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../features/auth/AuthContext'
 
 export function LoginPage() {
-  const { login } = useAuth()
+  const { login, user } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -17,7 +17,8 @@ export function LoginPage() {
     try {
       await login(email, password)
       // Редірект залежно від ролі
-      const role = useAuthRole()
+      const stored = localStorage.getItem('camp_user')
+      const role = stored ? (JSON.parse(stored)?.role as string | null) : user?.role ?? null
       navigate(roleHomePath(role))
     } catch {
       setError('Невірний email або пароль')
@@ -76,15 +77,9 @@ export function LoginPage() {
   )
 }
 
-function useAuthRole() {
-  const stored = localStorage.getItem('camp_user')
-  if (!stored) return null
-  return JSON.parse(stored)?.role as string | null
-}
-
 function roleHomePath(role: string | null) {
   switch (role) {
-    case 'Administrator': return '/admin/dashboard'
+    case 'Administrator': return '/admin/camps'
     case 'Leader': return '/leader/my-squads'
     case 'Worker': return '/worker/spend-coins'
     default: return '/child/search'

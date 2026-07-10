@@ -6,7 +6,7 @@ import {
   createRewardItem,
   getRewardById,
   getRewardWithItems,
-  getWorkerReward,
+  listWorkerRewards,
   listRewards,
   updateReward,
   updateRewardItem,
@@ -50,9 +50,9 @@ export async function registerRewardsRoutes(app: FastifyInstance) {
 
   // GET /rewards/mine  — своя точка + позиції (для Worker)
   app.get('/mine', { preHandler: [requireWorkerRole] }, async (request, reply) => {
-    const reward = await getWorkerReward(app, request.user.userId)
-    if (!reward) return reply.code(404).send({ error: 'No shop assigned to you' })
-    return reward
+    const rewards = await listWorkerRewards(app, request.user.userId)
+    if (rewards.length === 0) return reply.code(404).send({ error: 'No shop assigned to you' })
+    return rewards
   })
 
   // GET /rewards/:id  — точка + позиції
@@ -111,4 +111,3 @@ export async function registerRewardsRoutes(app: FastifyInstance) {
     return item
   })
 }
-

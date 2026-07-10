@@ -24,19 +24,26 @@ export async function getRewardWithItems(app: FastifyInstance, id: string) {
   return { ...reward, items }
 }
 
-export async function getWorkerReward(app: FastifyInstance, workerId: string) {
-  const [reward] = await app.db
+export async function listWorkerRewards(app: FastifyInstance, workerId: string) {
+  const assignedRewards = await app.db
     .select()
     .from(rewards)
     .where(eq(rewards.workerId, workerId))
-    .limit(1)
-  if (!reward) return null
-  const items = await app.db
-    .select()
-    .from(rewardItems)
-    .where(eq(rewardItems.rewardId, reward.id))
-    .orderBy(rewardItems.name)
-  return { ...reward, items }
+    .orderBy(rewards.name)
+
+  const rewardsWithItems = await Promise.all(
+    assignedRewards.map(async (reward) => {
+      const items = await app.db
+        .select()
+        .from(rewardItems)
+        .where(eq(rewardItems.rewardId, reward.id))
+        .orderBy(rewardItems.name)
+
+      return { ...reward, items }
+    }),
+  )
+
+  return rewardsWithItems
 }
 
 export async function createReward(
@@ -82,4 +89,3 @@ export async function updateRewardItem(
   const [item] = await app.db.update(rewardItems).set(data).where(eq(rewardItems.id, id)).returning()
   return item ?? null
 }
-
