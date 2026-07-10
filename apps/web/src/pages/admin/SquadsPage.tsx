@@ -179,8 +179,8 @@ export function SquadsPage() {
       ) : squads?.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           <p className="text-4xl mb-3">🏕️</p>
-          <p className="font-medium">Р—Р°РіРѕРЅС–РІ С‰Рµ РЅРµРјР°С”</p>
-          <p className="text-sm mt-1">РќР°С‚РёСЃРЅС–С‚СЊ + С‰РѕР± СЃС‚РІРѕСЂРёС‚Рё РїРµСЂС€РёР№</p>
+          <p className="font-medium">Загонів ще немає</p>
+          <p className="text-sm mt-1">Натисніть +, щоб створити перший</p>
         </div>
       ) : (
         <div className="space-y-3">
