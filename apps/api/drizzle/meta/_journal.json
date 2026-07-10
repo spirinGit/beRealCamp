@@ -22,6 +22,27 @@
       "when": 1783691801359,
       "tag": "0002_left_lockjaw",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1783694772255,
+      "tag": "0003_demonic_bloodaxe",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783695800910,
+      "tag": "0004_minor_praxagora",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783696653106,
+      "tag": "0005_foamy_juggernaut",
+      "breakpoints": true
     }
   ]
 }

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { registerAuditLogRoutes } from './audit-log/audit-log.routes.js'
+import { registerAttendanceRoutes } from './attendance/attendance.routes.js'
 import { registerAuthRoutes } from './auth/auth.routes.js'
 import { registerCampsRoutes } from './camps/camps.routes.js'
 import { registerChildrenRoutes } from './children/children.routes.js'
@@ -13,6 +14,7 @@ import { registerUsersRoutes } from './users/users.routes.js'
 
 export async function registerModules(app: FastifyInstance) {
   await app.register(registerAuthRoutes, { prefix: '/auth' })
+  await app.register(registerAttendanceRoutes, { prefix: '/attendance' })
   await app.register(registerCampsRoutes, { prefix: '/camps' })
   await app.register(registerUsersRoutes, { prefix: '/users' })
   await app.register(registerSquadsRoutes, { prefix: '/squads' })

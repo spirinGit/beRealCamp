@@ -11,6 +11,7 @@ import { RulesPage } from '../pages/admin/RulesPage'
 import { SquadsPage } from '../pages/admin/SquadsPage'
 import { UsersPage } from '../pages/admin/UsersPage'
 import { PenaltyRulesPage } from '../pages/admin/PenaltyRulesPage'
+import { PublicCampLinkPage } from '../pages/admin/PublicCampLinkPage'
 import { ChildProfilePage } from '../pages/child/ChildProfilePage'
 import { SearchPage } from '../pages/child/SearchPage'
 import { ShopPage } from '../pages/child/ShopPage'
@@ -46,6 +47,7 @@ export const appRouter = createBrowserRouter([
           { path: '/admin/rewards', element: <RewardsPage /> },
           { path: '/admin/audit', element: <AuditPage /> },
           { path: '/admin/more', element: <MorePage /> },
+          { path: '/admin/public-link', element: <PublicCampLinkPage /> },
         ],
       },
       {

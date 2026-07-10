@@ -45,6 +45,15 @@ export async function updateSquad(
   return squad ?? null
 }
 
+export async function isLeaderOfSquad(app: FastifyInstance, squadId: string, leaderId: string) {
+  const [entry] = await app.db
+    .select({ id: squadLeaders.id })
+    .from(squadLeaders)
+    .where(and(eq(squadLeaders.squadId, squadId), eq(squadLeaders.leaderId, leaderId)))
+    .limit(1)
+  return !!entry
+}
+
 export async function getSquadLeaders(app: FastifyInstance, squadId: string) {
   return app.db
     .select({
@@ -75,4 +84,3 @@ export async function removeLeader(app: FastifyInstance, squadId: string, leader
     .returning()
   return entry ?? null
 }
-

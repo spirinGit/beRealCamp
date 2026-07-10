@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSquadAttendance } from '../../features/attendance'
 import {
   type Child,
   useChildBalance,
@@ -30,6 +31,26 @@ function formatBirthDate(value: string) {
     month: '2-digit',
     year: 'numeric',
   })
+}
+
+function formatDayKey(date: Date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function attendanceState(
+  day: string,
+  today: string,
+  joinedAt: string,
+  attendance: Record<string, boolean>,
+) {
+  const joinedDay = formatDayKey(new Date(joinedAt))
+
+  if (day < joinedDay || day > today) return 'inactive'
+  if (attendance[day] === true) return 'present'
+  return 'absent'
 }
 
 function ChildCard({
@@ -205,6 +226,7 @@ function ChildDetailSheet({
   onChildDeleted: () => void
 }) {
   const { data: balance = 0 } = useChildBalance(child.id)
+  const { data: attendanceOverview } = useSquadAttendance(child.squadId)
   const { data: rules = [] } = useCoinRules()
   const { data: penaltyRules = [] } = usePenaltyRules()
   const { mutate: earn, isPending } = useEarnTalents()
@@ -345,6 +367,42 @@ function ChildDetailSheet({
             <span className="text-gray-400">Медичні примітки:</span> {child.medicalNotes || '—'}
           </p>
         </div>
+
+        {attendanceOverview && (
+          <div className="bg-gray-50 rounded-2xl p-4">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <p className="text-sm font-semibold text-gray-700">Відвідуваність</p>
+              <p className="text-xs text-gray-400">Дні табору</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {attendanceOverview.days.map((day) => {
+                const records =
+                  attendanceOverview.children.find((attendanceChild) => attendanceChild.id === child.id)
+                    ?.attendance ?? {}
+                const joinedAt =
+                  attendanceOverview.children.find((attendanceChild) => attendanceChild.id === child.id)
+                    ?.createdAt ?? child.createdAt
+                const state = attendanceState(day, attendanceOverview.today, joinedAt, records)
+
+                return (
+                  <div
+                    key={day}
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold ${
+                      state === 'present'
+                        ? 'bg-green-500 text-white'
+                        : state === 'absent'
+                          ? 'bg-red-500 text-white'
+                          : 'bg-gray-200 text-gray-500'
+                    }`}
+                    title={day}
+                  >
+                    {day.slice(8)}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="space-y-2">
           <button

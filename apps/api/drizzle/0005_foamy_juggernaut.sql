@@ -1,0 +1,1 @@
+ALTER TABLE "camps" ADD COLUMN "child_guidelines" text;

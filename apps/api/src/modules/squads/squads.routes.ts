@@ -6,6 +6,7 @@ import {
   createSquad,
   getSquadById,
   getSquadLeaders,
+  isLeaderOfSquad,
   listSquads,
   listSquadsForLeader,
   removeLeader,
@@ -58,10 +59,21 @@ export async function registerSquadsRoutes(app: FastifyInstance) {
   })
 
   // PATCH /squads/:id
-  app.patch('/:id', { preHandler: [requireAdmin] }, async (request, reply) => {
+  app.patch('/:id', { preHandler: [requireAdminOrLeader] }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const parsed = updateBody.safeParse(request.body)
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid input' })
+
+    if (request.user.role === 'Leader') {
+      const allowed = await isLeaderOfSquad(app, id, request.user.userId)
+      if (!allowed) return reply.code(403).send({ error: 'You can edit only your squads' })
+
+      const { name, color, description } = parsed.data
+      if (!name || color !== undefined || description !== undefined) {
+        return reply.code(403).send({ error: 'Leader can update only squad name' })
+      }
+    }
+
     const squad = await updateSquad(app, id, parsed.data)
     if (!squad) return reply.code(404).send({ error: 'Squad not found' })
     return squad

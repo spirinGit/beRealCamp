@@ -13,14 +13,14 @@ interface CoinRule {
 }
 
 function usePenaltyRules() {
-  const { user } = useAuth()
+  const { effectiveCampId } = useAuth()
   return useQuery({
-    queryKey: ['penalty-rules', user?.campId],
+    queryKey: ['penalty-rules', effectiveCampId],
     queryFn: async () => {
-      const { data } = await apiClient.get<CoinRule[]>(`/coin-rules?campId=${user?.campId}`)
+      const { data } = await apiClient.get<CoinRule[]>(`/coin-rules?campId=${effectiveCampId}`)
       return data.filter((rule) => rule.points < 0)
     },
-    enabled: !!user?.campId,
+    enabled: !!effectiveCampId,
   })
 }
 
@@ -38,13 +38,13 @@ function useToggleRule() {
 }
 
 function useCreatePenaltyRule() {
-  const { user } = useAuth()
+  const { effectiveCampId } = useAuth()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body: { label: string; points: number }) => {
       const normalized = Math.abs(body.points)
       const { data } = await apiClient.post('/coin-rules', {
-        campId: user!.campId,
+        campId: effectiveCampId!,
         key: `penalty_${body.label.toLowerCase().replace(/\s+/g, '_')}`,
         label: body.label,
         points: -normalized,

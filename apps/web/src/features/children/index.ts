@@ -18,16 +18,16 @@ export interface Child {
 }
 
 export function useChildren(squadId?: string) {
-  const { user } = useAuth()
+  const { effectiveCampId } = useAuth()
   return useQuery({
-    queryKey: ['children', user?.campId, squadId],
+    queryKey: ['children', effectiveCampId, squadId],
     queryFn: async () => {
-      const params = new URLSearchParams({ campId: user!.campId })
+      const params = new URLSearchParams({ campId: effectiveCampId! })
       if (squadId) params.set('squadId', squadId)
       const { data } = await apiClient.get<Child[]>(`/children?${params}`)
       return data
     },
-    enabled: !!user?.campId,
+    enabled: !!effectiveCampId,
   })
 }
 
@@ -43,7 +43,7 @@ export function useChildBalance(childId: string) {
 }
 
 export function useCreateChild() {
-  const { user } = useAuth()
+  const { effectiveCampId } = useAuth()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body: {
@@ -58,7 +58,7 @@ export function useCreateChild() {
     }) => {
       const { data } = await apiClient.post<Child>('/children', {
         ...body,
-        campId: user!.campId,
+        campId: effectiveCampId!,
       })
       return data
     },

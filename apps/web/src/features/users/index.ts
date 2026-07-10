@@ -26,19 +26,19 @@ export const ROLE_COLORS: Record<User['role'], string> = {
 }
 
 export function useUsers() {
-  const { user } = useAuth()
+  const { effectiveCampId } = useAuth()
   return useQuery({
-    queryKey: ['users', user?.campId],
+    queryKey: ['users', effectiveCampId],
     queryFn: async () => {
-      const { data } = await apiClient.get<User[]>(`/users?campId=${user?.campId}`)
+      const { data } = await apiClient.get<User[]>(`/users?campId=${effectiveCampId}`)
       return data
     },
-    enabled: !!user?.campId,
+    enabled: !!effectiveCampId,
   })
 }
 
 export function useCreateUser() {
-  const { user } = useAuth()
+  const { effectiveCampId } = useAuth()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body: {
@@ -50,7 +50,7 @@ export function useCreateUser() {
     }) => {
       const { data } = await apiClient.post<User>('/users', {
         ...body,
-        campId: user!.campId,
+        campId: effectiveCampId!,
       })
       return data
     },
@@ -67,4 +67,3 @@ export function useDeactivateUser() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
   })
 }
-

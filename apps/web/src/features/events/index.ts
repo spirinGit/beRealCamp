@@ -40,27 +40,31 @@ export interface LeaderEventRow {
 }
 
 export function useAdminEvents(view: 'active' | 'history') {
+  const { effectiveCampId } = useAuth()
   return useQuery({
-    queryKey: ['events', 'admin', view],
+    queryKey: ['events', 'admin', effectiveCampId, view],
     queryFn: async () => {
-      const { data } = await apiClient.get<CampEvent[]>(`/events/admin?view=${view}`)
+      const { data } = await apiClient.get<CampEvent[]>(`/events/admin?view=${view}&campId=${effectiveCampId}`)
       return data
     },
+    enabled: !!effectiveCampId,
   })
 }
 
 export function useEventDetails(eventId?: string) {
+  const { effectiveCampId } = useAuth()
   return useQuery({
-    queryKey: ['events', 'admin', 'details', eventId],
+    queryKey: ['events', 'admin', 'details', effectiveCampId, eventId],
     queryFn: async () => {
-      const { data } = await apiClient.get<EventDetails>(`/events/admin/${eventId}`)
+      const { data } = await apiClient.get<EventDetails>(`/events/admin/${eventId}?campId=${effectiveCampId}`)
       return data
     },
-    enabled: !!eventId,
+    enabled: !!eventId && !!effectiveCampId,
   })
 }
 
 export function useCreateEvent() {
+  const { effectiveCampId } = useAuth()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body: {
@@ -71,8 +75,9 @@ export function useCreateEvent() {
       penaltyPoints: number
       endsAt: string
       squadIds: string[]
+      campId?: string
     }) => {
-      const { data } = await apiClient.post('/events/admin', body)
+      const { data } = await apiClient.post('/events/admin', { ...body, campId: effectiveCampId })
       return data
     },
     onSuccess: () => {
@@ -82,12 +87,16 @@ export function useCreateEvent() {
 }
 
 export function useUpdateEventParticipant(eventId: string) {
+  const { effectiveCampId } = useAuth()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: async (body: { squadId: string; status: 'completed' | 'failed' }) => {
-      const { data } = await apiClient.patch(`/events/admin/${eventId}/squads/${body.squadId}`, {
-        status: body.status,
-      })
+      const { data } = await apiClient.patch(
+        `/events/admin/${eventId}/squads/${body.squadId}?campId=${effectiveCampId}`,
+        {
+          status: body.status,
+        },
+      )
       return data
     },
     onSuccess: () => {

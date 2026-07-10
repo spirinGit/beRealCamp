@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useChildBalance, useChildren } from '../../features/children'
 import { useWorkerRewards, type RewardItem } from '../../features/rewards'
 import { useSquads } from '../../features/squads'
@@ -117,10 +117,8 @@ export function SpendCoinsPage() {
   }, [selectedSquadId, squads])
 
   const rewardList = rewards ?? []
-  const selectedReward = useMemo(
-    () => rewardList.find((reward) => reward.id === selectedRewardId) ?? rewardList[0] ?? null,
-    [rewardList, selectedRewardId],
-  )
+  const selectedReward =
+    rewardList.find((reward) => reward.id === selectedRewardId) ?? rewardList[0] ?? null
 
   if (loadingReward) {
     return <div className="p-4 text-center pt-20 text-gray-400">Завантаження...</div>

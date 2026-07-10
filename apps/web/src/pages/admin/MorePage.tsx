@@ -25,6 +25,12 @@ const sections = [
     title: 'Події',
     description: 'Створення подій, перевірка і історія',
   },
+  {
+    to: '/admin/public-link',
+    icon: '🔗',
+    title: 'Посилання для дітей',
+    description: 'Публічний URL, QR-код і PDF для поточного табору',
+  },
 ]
 
 export function MorePage() {

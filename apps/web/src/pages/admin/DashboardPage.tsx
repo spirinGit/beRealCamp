@@ -20,15 +20,15 @@ function StatCard({ label, value, icon }: { label: string; value: number | strin
 }
 
 export function DashboardPage() {
-  const { user } = useAuth()
+  const { effectiveCampId } = useAuth()
 
   const { data: stats, isLoading } = useQuery({
-    queryKey: ['stats', user?.campId],
+    queryKey: ['stats', effectiveCampId],
     queryFn: async () => {
-      const { data } = await apiClient.get<Stats>(`/stats?campId=${user?.campId}`)
+      const { data } = await apiClient.get<Stats>(`/stats?campId=${effectiveCampId}`)
       return data
     },
-    enabled: !!user?.campId,
+    enabled: !!effectiveCampId,
   })
 
   return (
@@ -55,5 +55,4 @@ export function DashboardPage() {
     </div>
   )
 }
-
 

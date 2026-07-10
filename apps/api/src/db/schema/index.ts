@@ -1,4 +1,5 @@
 export * from './audit-logs.js'
+export * from './attendance.js'
 export * from './camps.js'
 export * from './children.js'
 export * from './coin-rules.js'
