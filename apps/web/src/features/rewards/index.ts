@@ -21,11 +21,11 @@ export interface Reward {
   items?: RewardItem[]
 }
 
-export function useWorkerReward() {
+export function useWorkerRewards() {
   return useQuery({
-    queryKey: ['reward-mine'],
+    queryKey: ['worker-rewards-mine'],
     queryFn: async () => {
-      const { data } = await apiClient.get<Reward>('/rewards/mine')
+      const { data } = await apiClient.get<Reward[]>('/rewards/mine')
       return data
     },
   })
@@ -79,6 +79,7 @@ export function useAssignWorker(rewardId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['rewards'] })
       qc.invalidateQueries({ queryKey: ['reward', rewardId] })
+      qc.invalidateQueries({ queryKey: ['worker-rewards-mine'] })
     },
   })
 }
@@ -103,5 +104,4 @@ export function useToggleRewardItem(rewardId: string) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['reward', rewardId] }),
   })
 }
-
 

@@ -5,15 +5,18 @@ import { AuditPage } from '../pages/admin/AuditPage'
 import { CampsPage } from '../pages/admin/CampsPage'
 import { ChildrenPage } from '../pages/admin/ChildrenPage'
 import { DashboardPage } from '../pages/admin/DashboardPage'
+import { EventsPage as AdminEventsPage } from '../pages/admin/EventsPage'
 import { RewardsPage } from '../pages/admin/RewardsPage'
 import { RulesPage } from '../pages/admin/RulesPage'
 import { SquadsPage } from '../pages/admin/SquadsPage'
 import { UsersPage } from '../pages/admin/UsersPage'
+import { PenaltyRulesPage } from '../pages/admin/PenaltyRulesPage'
 import { ChildProfilePage } from '../pages/child/ChildProfilePage'
 import { SearchPage } from '../pages/child/SearchPage'
 import { ShopPage } from '../pages/child/ShopPage'
 import { ChildHistoryPage } from '../pages/leader/ChildHistoryPage'
 import { EvaluatePage } from '../pages/leader/EvaluatePage'
+import { LeaderEventsPage } from '../pages/leader/EventsPage'
 import { MySquadsPage } from '../pages/leader/MySquadsPage'
 import { SpendCoinsPage } from '../pages/worker/SpendCoinsPage'
 import { AdminLayout } from '../shared/ui/AdminLayout'
@@ -38,6 +41,8 @@ export const appRouter = createBrowserRouter([
           { path: '/admin/squads', element: <SquadsPage /> },
           { path: '/admin/children', element: <ChildrenPage /> },
           { path: '/admin/rules', element: <RulesPage /> },
+          { path: '/admin/penalty-rules', element: <PenaltyRulesPage /> },
+          { path: '/admin/events', element: <AdminEventsPage /> },
           { path: '/admin/rewards', element: <RewardsPage /> },
           { path: '/admin/audit', element: <AuditPage /> },
           { path: '/admin/more', element: <MorePage /> },
@@ -47,6 +52,7 @@ export const appRouter = createBrowserRouter([
         element: <LeaderLayout />,
         children: [
           { path: '/leader/my-squads', element: <MySquadsPage /> },
+          { path: '/leader/events', element: <LeaderEventsPage /> },
           { path: '/leader/evaluate', element: <EvaluatePage /> },
           { path: '/leader/child-history', element: <ChildHistoryPage /> },
         ],
@@ -65,4 +71,3 @@ export const appRouter = createBrowserRouter([
   { path: '/child/profile', element: <ChildProfilePage /> },
   { path: '/child/shop', element: <ShopPage /> },
 ])
-

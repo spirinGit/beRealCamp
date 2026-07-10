@@ -13,6 +13,18 @@ const sections = [
     title: 'Правила нарахування',
     description: 'Пресети талантів для лідерів',
   },
+  {
+    to: '/admin/penalty-rules',
+    icon: '🚫',
+    title: 'Правила покарання',
+    description: 'За що та скільки балів віднімати',
+  },
+  {
+    to: '/admin/events',
+    icon: '🎯',
+    title: 'Події',
+    description: 'Створення подій, перевірка і історія',
+  },
 ]
 
 export function MorePage() {

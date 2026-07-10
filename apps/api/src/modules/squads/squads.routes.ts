@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { requireAdmin, requireAdminOrLeader } from '../../lib/auth.js'
+import { authenticate, requireAdmin, requireAdminOrLeader } from '../../lib/auth.js'
 import {
   assignLeader,
   createSquad,
@@ -31,7 +31,7 @@ const assignLeaderBody = z.object({
 
 export async function registerSquadsRoutes(app: FastifyInstance) {
   // GET /squads?campId=  — admin бачить всі, leader — лише свої (BR-016)
-  app.get('/', { preHandler: [requireAdminOrLeader] }, async (request, reply) => {
+  app.get('/', { preHandler: [authenticate] }, async (request, reply) => {
     const { campId } = request.query as { campId?: string }
     const { role, userId, campId: userCampId } = request.user
 
@@ -90,4 +90,3 @@ export async function registerSquadsRoutes(app: FastifyInstance) {
     return { message: 'Leader removed' }
   })
 }
-

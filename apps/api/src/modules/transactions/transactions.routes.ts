@@ -24,7 +24,7 @@ const spendBody = z.object({
   comment: z.string().optional(),
 })
 
-const requireWorkerOrAdmin = requireRole('Worker', 'Administrator')
+const requireSpendRole = requireRole('Worker', 'Administrator', 'Leader')
 
 export async function registerTransactionsRoutes(app: FastifyInstance) {
   // GET /transactions?campId=&childId=  — журнал (BR-034)
@@ -55,16 +55,26 @@ export async function registerTransactionsRoutes(app: FastifyInstance) {
     return reply.code(201).send(tx)
   })
 
-  // POST /transactions/spend  — Worker списує таланти (BR-028, BR-030)
-  app.post('/spend', { preHandler: [requireWorkerOrAdmin] }, async (request, reply) => {
+  // POST /transactions/spend  — Worker/Admin/Leader списує таланти (BR-028, BR-030)
+  app.post('/spend', { preHandler: [requireSpendRole] }, async (request, reply) => {
     const parsed = spendBody.safeParse(request.body)
     if (!parsed.success) {
       return reply.code(400).send({ error: 'Invalid input', details: parsed.error.flatten() })
     }
 
+    const { role, userId } = request.user
+
+    // Leader може списувати лише дітям зі своїх загонів
+    if (role === 'Leader') {
+      const allowed = await leaderCanAccessChild(app, userId, parsed.data.childId)
+      if (!allowed) {
+        return reply.code(403).send({ error: 'You can only spend talents for children in your squads' })
+      }
+    }
+
     const result = await spendTalents(app, {
       ...parsed.data,
-      actorUserId: request.user.userId,
+      actorUserId: userId,
     })
 
     if (!result.ok) {
@@ -75,4 +85,3 @@ export async function registerTransactionsRoutes(app: FastifyInstance) {
     return reply.code(201).send(result.tx)
   })
 }
-

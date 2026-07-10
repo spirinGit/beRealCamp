@@ -28,7 +28,19 @@ export function useCoinRules() {
     queryKey: ['coin-rules', user?.campId],
     queryFn: async () => {
       const { data } = await apiClient.get<CoinRule[]>(`/coin-rules?campId=${user?.campId}`)
-      return data.filter((r) => r.isActive)
+      return data.filter((r) => r.isActive && r.points > 0)
+    },
+    enabled: !!user?.campId,
+  })
+}
+
+export function usePenaltyRules() {
+  const { user } = useAuth()
+  return useQuery({
+    queryKey: ['penalty-rules', user?.campId],
+    queryFn: async () => {
+      const { data } = await apiClient.get<CoinRule[]>(`/coin-rules?campId=${user?.campId}`)
+      return data.filter((r) => r.isActive && r.points < 0)
     },
     enabled: !!user?.campId,
   })
@@ -110,3 +122,60 @@ export function useEarnTalents() {
   })
 }
 
+export function useBulkEarnTalents() {
+  const { user } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: {
+      childIds: string[]
+      amount: number
+      reason: string
+      comment?: string
+    }) => {
+      const requests = body.childIds.map((childId) =>
+        apiClient.post('/transactions/earn', {
+          campId: user!.campId,
+          childId,
+          amount: body.amount,
+          reason: body.reason,
+          comment: body.comment,
+        }),
+      )
+      await Promise.all(requests)
+      return { count: body.childIds.length }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['balance'] })
+      qc.invalidateQueries({ queryKey: ['transactions'] })
+    },
+  })
+}
+
+export function useBulkSpendTalents() {
+  const { user } = useAuth()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: {
+      childIds: string[]
+      amount: number
+      reason: string
+      comment?: string
+    }) => {
+      const requests = body.childIds.map((childId) =>
+        apiClient.post('/transactions/spend', {
+          campId: user!.campId,
+          childId,
+          amount: body.amount,
+          reason: body.reason,
+          comment: body.comment,
+        }),
+      )
+      await Promise.all(requests)
+      return { count: body.childIds.length }
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['balance'] })
+      qc.invalidateQueries({ queryKey: ['transactions'] })
+    },
+  })
+}
