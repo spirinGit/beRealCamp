@@ -1,7 +1,15 @@
 import { useState } from 'react'
 import { useBulkMarkAttendance, useMarkAttendance, useSquadAttendance } from '../../features/attendance'
-import { type Child, useChildBalance, useChildren, useCreateChild } from '../../features/children'
+import {
+  type Child,
+  uploadChildAvatarFile,
+  useChildBalance,
+  useChildren,
+  useCreateChild,
+  useCreateChildAvatarUploadUrl,
+} from '../../features/children'
 import { type Squad, useRenameSquad, useSquads } from '../../features/squads'
+import { PhotoViewer } from '../../shared/ui'
 import {
   type CoinRule,
   useBulkEarnTalents,
@@ -45,7 +53,8 @@ function attendanceState(
 }
 
 function AddChildSheet({ squad, onClose }: { squad: Squad; onClose: () => void }) {
-  const { mutate, isPending } = useCreateChild()
+  const { mutateAsync: createChild, isPending } = useCreateChild()
+  const { mutateAsync: createAvatarUploadUrl, isPending: isPreparingAvatarUpload } = useCreateChildAvatarUploadUrl()
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [parentName, setParentName] = useState('')
@@ -53,26 +62,67 @@ function AddChildSheet({ squad, onClose }: { squad: Squad; onClose: () => void }
   const [gender, setGender] = useState<'male' | 'female'>('male')
   const [parentPhoneTail, setParentPhoneTail] = useState('')
   const [medicalNotes, setMedicalNotes] = useState('')
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const canSubmit = firstName.trim().length > 0 && lastName.trim().length > 0 && dateOfBirth.length > 0
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!canSubmit) return
 
-    mutate(
-      {
+    try {
+      setSubmitError(null)
+      let photoUrl: string | undefined
+
+      if (avatarFile) {
+        const target = await createAvatarUploadUrl({
+          squadId: squad.id,
+          fileName: avatarFile.name,
+          contentType: avatarFile.type,
+        })
+        await uploadChildAvatarFile(target.uploadUrl, avatarFile)
+        photoUrl = target.photoUrl
+      }
+
+      await createChild({
         squadId: squad.id,
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         parentName: parentName.trim() || undefined,
+        photoUrl,
         dateOfBirth,
         gender,
         parentPhone: parentPhoneTail ? `+380${parentPhoneTail}` : undefined,
         medicalNotes: medicalNotes.trim() || undefined,
-      },
-      { onSuccess: onClose },
-    )
+      })
+
+      onClose()
+    } catch {
+      setSubmitError('Не вдалося завантажити фото або створити дитину')
+    }
+  }
+
+  function handleAvatarSelect(file: File | null) {
+    if (!file) {
+      setAvatarFile(null)
+      setAvatarPreviewUrl(null)
+      return
+    }
+
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setSubmitError('Фото має бути у форматі JPEG, PNG або WEBP')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setSubmitError('Максимальний розмір фото: 5 MB')
+      return
+    }
+
+    setSubmitError(null)
+    setAvatarFile(file)
+    setAvatarPreviewUrl(URL.createObjectURL(file))
   }
 
   return (
@@ -99,6 +149,26 @@ function AddChildSheet({ squad, onClose }: { squad: Squad; onClose: () => void }
               className="w-full px-4 py-3 rounded-xl border border-gray-200"
               placeholder="Прізвище"
             />
+          </div>
+
+          <div>
+            <p className="text-sm font-medium text-gray-700 mb-1">Аватар дитини</p>
+            <div className="flex items-center gap-3">
+              <label className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 cursor-pointer">
+                Обрати фото
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)}
+                />
+              </label>
+              {avatarPreviewUrl ? (
+                <img src={avatarPreviewUrl} alt="avatar preview" className="w-12 h-12 rounded-full object-cover" />
+              ) : (
+                <span className="text-xs text-gray-400">Фото не обрано</span>
+              )}
+            </div>
           </div>
 
           <input
@@ -154,12 +224,14 @@ function AddChildSheet({ squad, onClose }: { squad: Squad; onClose: () => void }
             placeholder="Медичні примітки"
           />
 
+          {submitError && <p className="text-sm text-red-500">{submitError}</p>}
+
           <button
             type="submit"
-            disabled={!canSubmit || isPending}
+            disabled={!canSubmit || isPending || isPreparingAvatarUpload}
             className="w-full bg-violet-600 text-white font-semibold py-3 rounded-xl disabled:opacity-50"
           >
-            {isPending ? 'Створення...' : 'Додати дитину'}
+            {isPending || isPreparingAvatarUpload ? 'Створення...' : 'Додати дитину'}
           </button>
         </form>
       </div>
@@ -239,6 +311,7 @@ function EarnSheet({
   const [penaltyMode, setPenaltyMode] = useState<'preset' | 'custom'>('preset')
   const [showPenaltyForm, setShowPenaltyForm] = useState(false)
   const [showAttendance, setShowAttendance] = useState(false)
+  const [photoOpen, setPhotoOpen] = useState(false)
   const { mutate, isPending } = useEarnTalents()
   const { mutate: spend, isPending: isSpending } = useSpendTalents()
   const { mutate: markAttendance, isPending: isMarkingAttendance } = useMarkAttendance(squadId)
@@ -283,10 +356,24 @@ function EarnSheet({
         <div className="px-6 pt-6 pb-4">
           <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5" />
           <div className="flex items-start justify-between mb-4">
-            <div>
-              <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Нарахування</p>
-              <h2 className="text-2xl font-bold text-gray-900">{child.firstName}</h2>
-              <p className="text-lg font-semibold text-gray-600">{child.lastName}</p>
+            <div className="flex items-center gap-3">
+              <div
+                className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden cursor-pointer"
+                onClick={() => child.photoUrl && setPhotoOpen(true)}
+              >
+                {child.photoUrl
+                  ? <img src={child.photoUrl} alt={child.firstName} className="w-full h-full object-cover" />
+                  : <span>{child.gender === 'male' ? '👦' : '👧'}</span>
+                }
+              </div>
+              {photoOpen && child.photoUrl && (
+                <PhotoViewer src={child.photoUrl} alt={child.firstName} onClose={() => setPhotoOpen(false)} />
+              )}
+              <div>
+                <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Нарахування</p>
+                <h2 className="text-2xl font-bold text-gray-900">{child.firstName}</h2>
+                <p className="text-lg font-semibold text-gray-600">{child.lastName}</p>
+              </div>
             </div>
             <div className="bg-violet-50 rounded-2xl px-4 py-3 text-right">
               <p className="text-xs text-violet-400 mb-0.5">Баланс</p>
@@ -664,7 +751,12 @@ function SquadChildren({ squad, rules, penalties }: { squad: Squad; rules: CoinR
                   }}
                   className="flex-1 flex items-center gap-3 text-left"
                 >
-                  <span className="text-xl">{child.gender === 'male' ? '👦' : '👧'}</span>
+                  <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-lg flex-shrink-0 overflow-hidden">
+                    {child.photoUrl
+                      ? <img src={child.photoUrl} alt={child.firstName} className="w-full h-full object-cover" />
+                      : <span>{child.gender === 'male' ? '👦' : '👧'}</span>
+                    }
+                  </div>
                   <div className="flex-1"><p className="font-medium text-gray-900 text-sm">{child.firstName} {child.lastName}</p></div>
                   {isBulkMode ? <span className={`text-lg ${isSelected ? 'text-violet-600' : 'text-gray-300'}`}>{isSelected ? '☑' : '☐'}</span> : <span className="text-gray-300 text-lg">›</span>}
                 </button>

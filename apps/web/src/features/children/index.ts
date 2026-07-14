@@ -17,6 +17,14 @@ export interface Child {
   createdAt: string
 }
 
+export interface ChildAvatarUploadTarget {
+  uploadUrl: string
+  photoUrl: string
+  objectKey: string
+  expiresInSeconds: number
+  allowedContentTypes: string[]
+}
+
 export function useChildren(squadId?: string) {
   const { effectiveCampId } = useAuth()
   return useQuery({
@@ -51,6 +59,7 @@ export function useCreateChild() {
       firstName: string
       lastName: string
       parentName?: string
+      photoUrl?: string
       dateOfBirth: string
       gender: 'male' | 'female'
       parentPhone?: string
@@ -64,6 +73,34 @@ export function useCreateChild() {
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['children'] }),
   })
+}
+
+export function useCreateChildAvatarUploadUrl() {
+  const { effectiveCampId } = useAuth()
+  return useMutation({
+    mutationFn: async (body: { squadId: string; fileName: string; contentType: string }) => {
+      const { data } = await apiClient.post<ChildAvatarUploadTarget>('/children/avatar-upload-url', {
+        ...body,
+        campId: effectiveCampId!,
+      })
+      return data
+    },
+    onSuccess: () => undefined,
+  })
+}
+
+export async function uploadChildAvatarFile(uploadUrl: string, file: File) {
+  const response = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': file.type,
+    },
+    body: file,
+  })
+
+  if (!response.ok) {
+    throw new Error(`Avatar upload failed with status ${response.status}`)
+  }
 }
 
 export function useMoveChildToSquad() {

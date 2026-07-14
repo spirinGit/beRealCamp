@@ -2,6 +2,11 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { authenticate, requireAdmin, requireAdminOrLeader } from '../../lib/auth.js'
 import {
+  createChildAvatarUploadUrl,
+  isAllowedAvatarType,
+  isAvatarStorageConfigured,
+} from '../../lib/r2-storage.js'
+import {
   createChild,
   deleteChild,
   getChildBalance,
@@ -35,6 +40,13 @@ const updateBody = z.object({
   gender: z.enum(['male', 'female']).optional(),
   parentPhone: z.string().min(1).optional(),
   medicalNotes: z.string().optional(),
+})
+
+const avatarUploadBody = z.object({
+  squadId: z.string().uuid(),
+  campId: z.string().uuid().optional(),
+  fileName: z.string().min(1),
+  contentType: z.string().min(1),
 })
 
 function normalizeOptionalPhone(phone?: string) {
@@ -71,6 +83,39 @@ export async function registerChildrenRoutes(app: FastifyInstance) {
       return listChildrenForLeader(app, userId)
     }
     return listChildren(app, campId ?? userCampId, squadId)
+  })
+
+  // POST /children/avatar-upload-url  — presigned upload URL for child avatar
+  app.post('/avatar-upload-url', { preHandler: [requireAdminOrLeader] }, async (request, reply) => {
+    if (!isAvatarStorageConfigured()) {
+      return reply.code(503).send({ error: 'Avatar storage is not configured on server' })
+    }
+
+    const parsed = avatarUploadBody.safeParse(request.body)
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'Invalid input', details: parsed.error.flatten() })
+    }
+
+    if (!isAllowedAvatarType(parsed.data.contentType)) {
+      return reply.code(400).send({ error: 'Unsupported image type. Use JPEG, PNG or WEBP.' })
+    }
+
+    const { role, userId, campId: userCampId } = request.user
+    if (role === 'Leader') {
+      const allowed = await isLeaderOfSquad(app, userId, parsed.data.squadId)
+      if (!allowed) {
+        return reply.code(403).send({ error: 'You can upload avatars only for your squads' })
+      }
+    }
+
+    const campId = role === 'Leader' ? userCampId : (parsed.data.campId ?? userCampId)
+    const uploadTarget = await createChildAvatarUploadUrl({
+      campId,
+      squadId: parsed.data.squadId,
+      contentType: parsed.data.contentType,
+    })
+
+    return uploadTarget
   })
 
   // POST /children  — Admin або Leader (лише в свій загін)

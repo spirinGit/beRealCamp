@@ -2,13 +2,16 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSquadAttendance } from '../../features/attendance'
 import {
   type Child,
+  uploadChildAvatarFile,
   useChildBalance,
   useChildren,
   useCreateChild,
+  useCreateChildAvatarUploadUrl,
   useDeleteChild,
   useMoveChildToSquad,
 } from '../../features/children'
 import { useSquads } from '../../features/squads'
+import { PhotoViewer } from '../../shared/ui'
 import {
   useBulkEarnTalents,
   useCoinRules,
@@ -72,8 +75,11 @@ function ChildCard({
       onClick={() => onClick(child)}
       className="w-full bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3 text-left active:scale-[0.98] transition-transform"
     >
-      <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center text-xl flex-shrink-0">
-        {genderLabel(child.gender)}
+      <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center text-xl flex-shrink-0 overflow-hidden">
+        {child.photoUrl
+          ? <img src={child.photoUrl} alt={child.firstName} className="w-full h-full object-cover" />
+          : genderLabel(child.gender)
+        }
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-gray-900">{child.firstName} {child.lastName}</p>
@@ -242,6 +248,7 @@ function ChildDetailSheet({
   const [showManageSheet, setShowManageSheet] = useState(false)
   const [showEarnSheet, setShowEarnSheet] = useState(false)
   const [showPenaltySheet, setShowPenaltySheet] = useState(false)
+  const [photoOpen, setPhotoOpen] = useState(false)
   const [selectedPenaltyRuleId, setSelectedPenaltyRuleId] = useState<string | null>(null)
   const [customPenaltyReason, setCustomPenaltyReason] = useState('')
   const [customPenaltyAmount, setCustomPenaltyAmount] = useState('')
@@ -335,17 +342,31 @@ function ChildDetailSheet({
       <div className="relative bg-white rounded-t-3xl p-6 space-y-5 max-h-[92dvh] overflow-y-auto">
         <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
 
+        {photoOpen && child.photoUrl && (
+          <PhotoViewer src={child.photoUrl} alt={child.firstName} onClose={() => setPhotoOpen(false)} />
+        )}
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-2xl font-bold text-gray-900">
-              {genderLabel(child.gender)} {child.firstName} {child.lastName}
-            </p>
-            {squad && (
-              <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: squad.color }} />
-                {squad.name}
+          <div className="flex items-center gap-3">
+            <div
+              className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden cursor-pointer"
+              onClick={() => child.photoUrl && setPhotoOpen(true)}
+            >
+              {child.photoUrl
+                ? <img src={child.photoUrl} alt={child.firstName} className="w-full h-full object-cover" />
+                : genderLabel(child.gender)
+              }
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-gray-900">
+                {child.firstName} {child.lastName}
               </p>
-            )}
+              {squad && (
+                <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: squad.color }} />
+                  {squad.name}
+                </p>
+              )}
+            </div>
           </div>
           <div className="bg-violet-50 rounded-2xl px-3 py-2 text-right">
             <p className="text-xs text-violet-400">Баланс</p>
@@ -647,27 +668,69 @@ function CreateChildSheet({
     parentPhoneDigits: '',
     medicalNotes: '',
   })
-  const { mutate, isPending, error } = useCreateChild()
+  const { mutateAsync: createChild, isPending, error } = useCreateChild()
+  const { mutateAsync: createAvatarUploadUrl, isPending: isPreparingAvatarUpload } = useCreateChildAvatarUploadUrl()
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   function set(key: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    mutate(
-      {
+    try {
+      setSubmitError(null)
+      let photoUrl: string | undefined
+
+      if (avatarFile) {
+        const target = await createAvatarUploadUrl({
+          squadId: form.squadId,
+          fileName: avatarFile.name,
+          contentType: avatarFile.type,
+        })
+        await uploadChildAvatarFile(target.uploadUrl, avatarFile)
+        photoUrl = target.photoUrl
+      }
+
+      await createChild({
         firstName: form.firstName,
         lastName: form.lastName,
         squadId: form.squadId,
+        photoUrl,
         dateOfBirth: form.dateOfBirth,
         gender: form.gender,
         parentName: form.parentName.trim() || undefined,
         parentPhone: form.parentPhoneDigits ? `+380${form.parentPhoneDigits}` : undefined,
         medicalNotes: form.medicalNotes.trim() || undefined,
-      },
-      { onSuccess: onClose },
-    )
+      })
+
+      onClose()
+    } catch {
+      setSubmitError('Не вдалося завантажити фото або створити дитину')
+    }
+  }
+
+  function handleAvatarSelect(file: File | null) {
+    if (!file) {
+      setAvatarFile(null)
+      setAvatarPreviewUrl(null)
+      return
+    }
+
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setSubmitError('Фото має бути у форматі JPEG, PNG або WEBP')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setSubmitError('Максимальний розмір фото: 5 MB')
+      return
+    }
+
+    setSubmitError(null)
+    setAvatarFile(file)
+    setAvatarPreviewUrl(URL.createObjectURL(file))
   }
 
   return (
@@ -684,6 +747,26 @@ function CreateChildSheet({
               <input value={form.firstName} onChange={(e) => set('firstName', e.target.value)} required
                 className="w-full px-3 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
                 placeholder="Іван" />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Аватар дитини</label>
+              <div className="flex items-center gap-3">
+                <label className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 cursor-pointer">
+                  Обрати фото
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+                {avatarPreviewUrl ? (
+                  <img src={avatarPreviewUrl} alt="avatar preview" className="w-12 h-12 rounded-full object-cover" />
+                ) : (
+                  <span className="text-xs text-gray-400">Фото не обрано</span>
+                )}
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Прізвище *</label>
@@ -753,11 +836,13 @@ function CreateChildSheet({
               placeholder="Алергії, особливості..." />
           </div>
 
-          {error && <p className="text-red-500 text-sm">Помилка. Перевірте дані.</p>}
+          {(error || submitError) && (
+            <p className="text-red-500 text-sm">{submitError ?? 'Помилка. Перевірте дані.'}</p>
+          )}
 
-          <button type="submit" disabled={isPending}
+          <button type="submit" disabled={isPending || isPreparingAvatarUpload}
             className="w-full bg-violet-600 text-white font-semibold py-3 rounded-xl text-base disabled:opacity-50 active:scale-95 transition-transform">
-            {isPending ? 'Збереження...' : 'Зареєструвати'}
+            {isPending || isPreparingAvatarUpload ? 'Збереження...' : 'Зареєструвати'}
           </button>
         </form>
       </div>
