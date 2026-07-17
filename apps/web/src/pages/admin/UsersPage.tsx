@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import {
   ROLE_COLORS,
   ROLE_LABELS,
@@ -17,13 +17,45 @@ async function uploadUserAvatarFile(uploadUrl: string, file: File) {
 
 const ROLES: User['role'][] = ['Administrator', 'Leader', 'Worker']
 
+const inputClass =
+  'w-full px-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500'
+
+function Initials({ firstName, lastName }: { firstName: string; lastName: string }) {
+  const initials = `${firstName[0] ?? ''}${lastName[0] ?? ''}`
+  return <span>{initials || '?'}</span>
+}
+
+function RoleSelector({ value, onChange }: { value: User['role']; onChange: (role: User['role']) => void }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">Роль *</label>
+      <div className="flex gap-2">
+        {ROLES.map((role) => (
+          <button
+            key={role}
+            type="button"
+            onClick={() => onChange(role)}
+            className={`flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-colors ${
+              value === role
+                ? 'border-violet-500 bg-violet-50 text-violet-700'
+                : 'border-gray-200 text-gray-500'
+            }`}
+          >
+            {ROLE_LABELS[role]}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function UserCard({ user, onEdit }: { user: User; onEdit: (u: User) => void }) {
   return (
     <div className={`bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3 ${!user.isActive ? 'opacity-50' : ''}`}>
       <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center text-lg font-bold text-gray-500 flex-shrink-0 overflow-hidden">
         {user.photoUrl
           ? <img src={user.photoUrl} alt={user.firstName} className="w-full h-full object-cover" />
-          : <span>{user.firstName[0]}{user.lastName[0]}</span>
+          : <Initials firstName={user.firstName} lastName={user.lastName} />
         }
       </div>
       <div className="flex-1 min-w-0">
@@ -54,7 +86,7 @@ function CreateUserSheet({ onClose }: { onClose: () => void }) {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: FormEvent) {
     e.preventDefault()
     mutate(form, { onSuccess: onClose })
   }
@@ -62,87 +94,73 @@ function CreateUserSheet({ onClose }: { onClose: () => void }) {
   return (
     <BottomSheet onClose={onClose} className="p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
       <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-2" />
-        <h2 className="text-xl font-bold text-gray-900">Новий користувач</h2>
+      <h2 className="text-xl font-bold text-gray-900">Новий користувач</h2>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Ім'я *</label>
-              <input
-                value={form.firstName}
-                onChange={(e) => set('firstName', e.target.value)}
-                required
-                className="w-full px-3 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
-                placeholder="Іван"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Прізвище *</label>
-              <input
-                value={form.lastName}
-                onChange={(e) => set('lastName', e.target.value)}
-                required
-                className="w-full px-3 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
-                placeholder="Іванов"
-              />
-            </div>
-          </div>
-
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ім'я *</label>
             <input
-              type="email"
-              value={form.email}
-              onChange={(e) => set('email', e.target.value)}
+              value={form.firstName}
+              onChange={(e) => set('firstName', e.target.value)}
               required
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
-              placeholder="leader@camp.com"
+              className={inputClass}
+              placeholder="Іван"
             />
           </div>
-
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Пароль *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Прізвище *</label>
             <input
-              type="password"
-              value={form.password}
-              onChange={(e) => set('password', e.target.value)}
+              value={form.lastName}
+              onChange={(e) => set('lastName', e.target.value)}
               required
-              minLength={8}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
-              placeholder="Мінімум 8 символів"
+              className={inputClass}
+              placeholder="Іванов"
             />
           </div>
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Роль *</label>
-            <div className="flex gap-2">
-              {ROLES.map((role) => (
-                <button
-                  key={role}
-                  type="button"
-                  onClick={() => set('role', role)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-colors ${
-                    form.role === role
-                      ? 'border-violet-500 bg-violet-50 text-violet-700'
-                      : 'border-gray-200 text-gray-500'
-                  }`}
-                >
-                  {ROLE_LABELS[role]}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+          <input
+            type="email"
+            value={form.email}
+            onChange={(e) => set('email', e.target.value)}
+            required
+            className={inputClass}
+            placeholder="leader@camp.com"
+          />
+        </div>
 
-          {error && <p className="text-red-500 text-sm">Помилка створення. Перевірте дані.</p>}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Пароль *</label>
+          <input
+            type="password"
+            value={form.password}
+            onChange={(e) => set('password', e.target.value)}
+            required
+            minLength={8}
+            className={inputClass}
+            placeholder="Мінімум 8 символів"
+          />
+        </div>
 
-          <button
-            type="submit"
-            disabled={isPending}
-            className="w-full bg-violet-600 text-white font-semibold py-3 rounded-xl text-base disabled:opacity-50 active:scale-95 transition-transform"
-          >
-            {isPending ? 'Створення...' : 'Створити'}
-          </button>
-        </form>
+        <RoleSelector value={form.role} onChange={(role) => set('role', role)} />
+
+        {error && (
+          <p className="text-red-500 text-sm">
+            {error instanceof Error ? error.message : 'Помилка створення. Перевірте дані.'}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={isPending}
+          className="w-full bg-violet-600 text-white font-semibold py-3 rounded-xl text-base disabled:opacity-50 active:scale-95 transition-transform"
+        >
+          {isPending ? 'Створення...' : 'Створити'}
+        </button>
+      </form>
     </BottomSheet>
   )
 }
@@ -157,8 +175,16 @@ function EditUserSheet({ user, onClose }: { user: User; onClose: () => void }) {
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const { mutate: updateUserSync, mutateAsync: updateUser, isPending } = useUpdateUser(user.id)
+  const [statusPending, setStatusPending] = useState(false)
+  const { mutateAsync: updateUser, isPending } = useUpdateUser(user.id)
   const { mutateAsync: createAvatarUploadUrl, isPending: isUploading } = useCreateUserAvatarUploadUrl()
+
+  // Revoke the object URL whenever it changes or the component unmounts,
+  // to avoid leaking blob URLs.
+  useEffect(() => {
+    if (!avatarPreviewUrl) return
+    return () => URL.revokeObjectURL(avatarPreviewUrl)
+  }, [avatarPreviewUrl])
 
   function set(key: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -173,7 +199,7 @@ function EditUserSheet({ user, onClose }: { user: User; onClose: () => void }) {
     setAvatarPreviewUrl(URL.createObjectURL(file))
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setSubmitError(null)
     try {
@@ -190,7 +216,26 @@ function EditUserSheet({ user, onClose }: { user: User; onClose: () => void }) {
     }
   }
 
+  async function handleToggleActive() {
+    const nextActive = !user.isActive
+    if (!nextActive) {
+      const confirmed = window.confirm(`Деактивувати ${user.firstName} ${user.lastName}?`)
+      if (!confirmed) return
+    }
+    setSubmitError(null)
+    setStatusPending(true)
+    try {
+      await updateUser({ isActive: nextActive })
+      onClose()
+    } catch {
+      setSubmitError('Не вдалося змінити статус користувача')
+    } finally {
+      setStatusPending(false)
+    }
+  }
+
   const displayPhoto = avatarPreviewUrl ?? user.photoUrl
+  const busy = isPending || isUploading || statusPending
 
   return (
     <BottomSheet onClose={onClose} className="p-6 space-y-4 max-h-[90dvh] overflow-y-auto">
@@ -203,63 +248,85 @@ function EditUserSheet({ user, onClose }: { user: User; onClose: () => void }) {
             <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center text-lg font-bold text-gray-500 flex-shrink-0 overflow-hidden">
               {displayPhoto
                 ? <img src={displayPhoto} alt={user.firstName} className="w-full h-full object-cover" />
-                : <span>{user.firstName[0]}{user.lastName[0]}</span>
+                : <Initials firstName={user.firstName} lastName={user.lastName} />
               }
             </div>
             <label className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 cursor-pointer active:bg-gray-50">
               {user.photoUrl || avatarPreviewUrl ? 'Змінити фото' : 'Додати фото'}
-              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
-                onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)} />
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)}
+              />
             </label>
           </div>
         </div>
+
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Ім'я *</label>
-            <input value={form.firstName} onChange={(e) => set('firstName', e.target.value)} required
-              className="w-full px-3 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500" placeholder="Іван" />
+            <input
+              value={form.firstName}
+              onChange={(e) => set('firstName', e.target.value)}
+              required
+              className={inputClass}
+              placeholder="Іван"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Прізвище *</label>
-            <input value={form.lastName} onChange={(e) => set('lastName', e.target.value)} required
-              className="w-full px-3 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500" placeholder="Іванов" />
+            <input
+              value={form.lastName}
+              onChange={(e) => set('lastName', e.target.value)}
+              required
+              className={inputClass}
+              placeholder="Іванов"
+            />
           </div>
         </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-          <input type="email" value={form.email} onChange={(e) => set('email', e.target.value)} required
-            className="w-full px-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500" />
+          <input
+            type="email"
+            value={form.email}
+            onChange={(e) => set('email', e.target.value)}
+            required
+            className={inputClass}
+          />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Роль *</label>
-          <div className="flex gap-2">
-            {ROLES.map((role) => (
-              <button key={role} type="button" onClick={() => set('role', role)}
-                className={`flex-1 py-2 rounded-xl text-sm font-medium border-2 transition-colors ${form.role === role ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-500'}`}>
-                {ROLE_LABELS[role]}
-              </button>
-            ))}
-          </div>
-        </div>
+
+        <RoleSelector value={form.role} onChange={(role) => set('role', role)} />
+
         {submitError && <p className="text-red-500 text-sm">{submitError}</p>}
-        <button type="submit" disabled={isPending || isUploading}
-          className="w-full bg-violet-600 text-white font-semibold py-3 rounded-xl text-base disabled:opacity-50 active:scale-95 transition-transform">
+
+        <button
+          type="submit"
+          disabled={busy}
+          className="w-full bg-violet-600 text-white font-semibold py-3 rounded-xl text-base disabled:opacity-50 active:scale-95 transition-transform"
+        >
           {isPending || isUploading ? 'Збереження...' : 'Зберегти'}
         </button>
+
         <div className="pt-2 border-t border-gray-100">
           {user.isActive ? (
-            <button type="button"
-              onClick={() => { updateUser({ isActive: false }, { onSuccess: onClose }) }}
-              disabled={isPending}
-              className="w-full py-3 rounded-xl border border-red-200 text-red-600 text-sm font-semibold disabled:opacity-50 active:bg-red-50">
-              Деактивувати користувача
+            <button
+              type="button"
+              onClick={handleToggleActive}
+              disabled={busy}
+              className="w-full py-3 rounded-xl border border-red-200 text-red-600 text-sm font-semibold disabled:opacity-50 active:bg-red-50"
+            >
+              {statusPending ? 'Деактивація...' : 'Деактивувати користувача'}
             </button>
           ) : (
-            <button type="button"
-              onClick={() => { updateUser({ isActive: true }, { onSuccess: onClose }) }}
-              disabled={isPending}
-              className="w-full py-3 rounded-xl border border-green-200 text-green-700 text-sm font-semibold disabled:opacity-50 active:bg-green-50">
-              Активувати користувача
+            <button
+              type="button"
+              onClick={handleToggleActive}
+              disabled={busy}
+              className="w-full py-3 rounded-xl border border-green-200 text-green-700 text-sm font-semibold disabled:opacity-50 active:bg-green-50"
+            >
+              {statusPending ? 'Активація...' : 'Активувати користувача'}
             </button>
           )}
         </div>
@@ -324,4 +391,3 @@ export function UsersPage() {
     </div>
   )
 }
-
