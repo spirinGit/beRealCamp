@@ -165,11 +165,17 @@ export async function registerChildrenRoutes(app: FastifyInstance) {
     }
   })
 
-  // PATCH /children/:id  — редагування (Admin only, BR-017)
-  app.patch('/:id', { preHandler: [requireAdmin] }, async (request, reply) => {
+  // PATCH /children/:id  — редагування (Admin або Leader свого загону)
+  app.patch('/:id', { preHandler: [requireAdminOrLeader] }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const parsed = updateBody.safeParse(request.body)
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid input' })
+    if (request.user.role === 'Leader') {
+      const existing = await getChildById(app, id)
+      if (!existing) return reply.code(404).send({ error: 'Child not found' })
+      const allowed = await isLeaderOfSquad(app, request.user.userId, existing.squadId)
+      if (!allowed) return reply.code(403).send({ error: 'You can only edit children in your squads' })
+    }
     const child = await updateChild(app, id, {
       ...parsed.data,
       parentPhone: normalizeOptionalPhone(parsed.data.parentPhone),

@@ -16,7 +16,6 @@ export function PhotoViewer({ src, alt, onClose }: PhotoViewerProps) {
   const overlayRef = useRef<HTMLDivElement>(null)
 
   const progress = Math.min(Math.abs(deltaY) / DISMISS_THRESHOLD, 1)
-  const bgOpacity = 1 - progress * 0.95
 
   // Prevent body scroll while viewer is open
   useEffect(() => {
@@ -63,7 +62,6 @@ export function PhotoViewer({ src, alt, onClose }: PhotoViewerProps) {
     <div
       ref={overlayRef}
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ backgroundColor: `rgba(0,0,0,${bgOpacity})` }}
       onMouseDown={(e) => { e.stopPropagation(); onDragStart(e.clientY) }}
       onMouseMove={(e) => {
         e.stopPropagation()

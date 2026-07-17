@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../features/auth/AuthContext'
 import { type Camp, useArchiveCamp, useCamps, useCreateCamp, useUpdateCamp } from '../../features/camps'
+import { BottomSheet } from '../../shared/ui'
 
 function formatDate(value: string | null) {
   if (!value) return '—'
@@ -35,10 +36,8 @@ function CreateCampSheet({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex flex-col justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-t-3xl p-6 space-y-4">
-        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-2" />
+    <BottomSheet onClose={onClose} className="p-6 space-y-4">
+      <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-2" />
         <h2 className="text-xl font-bold text-gray-900">Новий табір</h2>
 
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -82,8 +81,7 @@ function CreateCampSheet({ onClose }: { onClose: () => void }) {
             {isPending ? 'Створення...' : 'Створити табір'}
           </button>
         </form>
-      </div>
-    </div>
+    </BottomSheet>
   )
 }
 
@@ -130,10 +128,8 @@ function EditCampSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex flex-col justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-t-3xl p-6 space-y-4">
-        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-2" />
+    <BottomSheet onClose={onClose} className="p-6 space-y-4">
+      <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-2" />
         <h2 className="text-xl font-bold text-gray-900">Редагувати табір</h2>
 
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -192,8 +188,7 @@ function EditCampSheet({
             </button>
           )}
         </form>
-      </div>
-    </div>
+    </BottomSheet>
   )
 }
 

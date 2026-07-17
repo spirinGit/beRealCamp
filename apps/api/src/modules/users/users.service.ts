@@ -12,6 +12,7 @@ const safeFields = {
   email: users.email,
   role: users.role,
   isActive: users.isActive,
+  photoUrl: users.photoUrl,
   createdAt: users.createdAt,
 }
 
@@ -61,7 +62,7 @@ export async function createUser(
 export async function updateUser(
   app: FastifyInstance,
   id: string,
-  data: Partial<{ firstName: string; lastName: string; email: string; role: string; isActive: boolean }>,
+  data: Partial<{ firstName: string; lastName: string; email: string; role: string; isActive: boolean; photoUrl: string }>,
 ) {
   const [user] = await app.db
     .update(users)

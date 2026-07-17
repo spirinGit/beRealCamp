@@ -130,3 +130,23 @@ export function useDeleteChild() {
     },
   })
 }
+
+export function useUpdateChild(childId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: {
+      firstName?: string
+      lastName?: string
+      parentName?: string
+      dateOfBirth?: string
+      gender?: 'male' | 'female'
+      parentPhone?: string
+      medicalNotes?: string
+      photoUrl?: string
+    }) => {
+      const { data } = await apiClient.patch<Child>(`/children/${childId}`, body)
+      return data
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['children'] }),
+  })
+}

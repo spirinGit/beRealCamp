@@ -10,6 +10,7 @@ export interface User {
   email: string
   role: 'Administrator' | 'Leader' | 'Worker'
   isActive: boolean
+  photoUrl: string | null
   createdAt: string
 }
 
@@ -65,5 +66,33 @@ export function useDeactivateUser() {
       await apiClient.patch(`/users/${id}/deactivate`)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+  })
+}
+
+export interface UserAvatarUploadTarget {
+  uploadUrl: string
+  photoUrl: string
+  objectKey: string
+  expiresInSeconds: number
+  allowedContentTypes: string[]
+}
+
+export function useUpdateUser(userId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: { firstName?: string; lastName?: string; email?: string; role?: User['role']; photoUrl?: string; isActive?: boolean }) => {
+      const { data } = await apiClient.patch<User>(`/users/${userId}`, body)
+      return data
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['users'] }),
+  })
+}
+
+export function useCreateUserAvatarUploadUrl() {
+  return useMutation({
+    mutationFn: async (body: { contentType: string }) => {
+      const { data } = await apiClient.post<UserAvatarUploadTarget>('/users/avatar-upload-url', body)
+      return data
+    },
   })
 }

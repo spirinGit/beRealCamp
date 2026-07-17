@@ -24,6 +24,7 @@ export const rewardItems = pgTable('reward_items', {
     .notNull(),
   name: text('name').notNull(),
   price: integer('price').notNull(),
+  photoUrl: text('photo_url'),
   isActive: boolean('is_active').default(true).notNull(),
   createdAt: timestamp('created_at', { withTimezone: false }).defaultNow().notNull(),
 })

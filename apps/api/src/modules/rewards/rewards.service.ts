@@ -63,6 +63,11 @@ export async function updateReward(
   return reward ?? null
 }
 
+export async function deleteReward(app: FastifyInstance, id: string) {
+  const [reward] = await app.db.delete(rewards).where(eq(rewards.id, id)).returning()
+  return reward ?? null
+}
+
 // --- Позиції всередині точки ---
 
 export async function listRewardItems(app: FastifyInstance, rewardId: string) {
@@ -75,7 +80,7 @@ export async function listRewardItems(app: FastifyInstance, rewardId: string) {
 
 export async function createRewardItem(
   app: FastifyInstance,
-  data: { rewardId: string; name: string; price: number },
+  data: { rewardId: string; name: string; price: number; photoUrl?: string },
 ) {
   const [item] = await app.db.insert(rewardItems).values(data).returning()
   return item
@@ -84,7 +89,7 @@ export async function createRewardItem(
 export async function updateRewardItem(
   app: FastifyInstance,
   id: string,
-  data: Partial<{ name: string; price: number; isActive: boolean }>,
+  data: Partial<{ name: string; price: number; isActive: boolean; photoUrl: string }>,
 ) {
   const [item] = await app.db.update(rewardItems).set(data).where(eq(rewardItems.id, id)).returning()
   return item ?? null

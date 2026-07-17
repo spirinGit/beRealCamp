@@ -10,6 +10,7 @@ export const squads = pgTable('squads', {
   name: text('name').notNull(),
   color: text('color').notNull(),
   description: text('description'),
+  photoUrl: text('photo_url'),
   createdAt: timestamp('created_at', { withTimezone: false }).defaultNow().notNull(),
 })
 

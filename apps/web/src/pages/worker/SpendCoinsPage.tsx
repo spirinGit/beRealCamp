@@ -3,6 +3,7 @@ import { useChildBalance, useChildren } from '../../features/children'
 import { useWorkerRewards, type RewardItem } from '../../features/rewards'
 import { useSquads } from '../../features/squads'
 import { useSearchChildren, useSpendTalents } from '../../features/transactions'
+import { BottomSheet } from '../../shared/ui'
 
 function SpendSheet({
   child,
@@ -37,60 +38,52 @@ function SpendSheet({
   const activeItems = items.filter((i) => i.isActive)
 
   return (
-    <div className="fixed inset-0 z-20 flex flex-col justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-t-3xl max-h-[85dvh] flex flex-col">
-        <div className="p-6 pb-3 flex-shrink-0">
-          <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">{child.firstName} {child.lastName}</h2>
-              <p className="text-sm text-gray-400 mt-0.5">Баланс: <span className="font-bold text-violet-600">⭐ {balance}</span></p>
-            </div>
-          </div>
-        </div>
-
-        <div className="overflow-y-auto flex-1 px-6 pb-6 space-y-3">
-          <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Оберіть товар</p>
-
-          {activeItems.length === 0 ? (
-            <p className="text-sm text-gray-400 italic">Позицій немає. Зверніться до адміна.</p>
-          ) : (
-            <div className="space-y-2">
-              {activeItems.map((item) => (
-                <button key={item.id} onClick={() => setSelected(item)}
-                  className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-colors text-left ${
-                    selected?.id === item.id ? 'border-violet-500 bg-violet-50' : 'border-gray-100 bg-gray-50'
-                  }`}>
-                  <span className="text-sm font-medium text-gray-800">{item.name}</span>
-                  <span className={`text-sm font-bold ${item.price > balance ? 'text-red-400' : 'text-violet-600'}`}>
-                    ⭐ {item.price}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-
+    <BottomSheet onClose={onClose} className="max-h-[85dvh] flex flex-col">
+      <div className="p-6 pb-3 flex-shrink-0">
+        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+        <div className="flex items-center justify-between">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Коментар</label>
-            <input value={comment} onChange={(e) => setComment(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
-              placeholder="Необов'язково" />
+            <h2 className="text-xl font-bold text-gray-900">{child.firstName} {child.lastName}</h2>
+            <p className="text-sm text-gray-400 mt-0.5">Баланс: <span className="font-bold text-violet-600">⭐ {balance}</span></p>
           </div>
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-              <p className="text-red-600 text-sm font-medium">❌ {error}</p>
-            </div>
-          )}
-
-          <button onClick={handleSpend} disabled={!selected || isPending}
-            className="w-full bg-violet-600 text-white font-semibold py-3.5 rounded-xl text-base disabled:opacity-40 active:scale-95 transition-transform">
-            {isPending ? 'Списання...' : selected ? `Списати ⭐ ${selected.price}` : 'Оберіть товар'}
-          </button>
         </div>
       </div>
-    </div>
+      <div className="overflow-y-auto flex-1 px-6 pb-6 space-y-3">
+        <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Оберіть товар</p>
+        {activeItems.length === 0 ? (
+          <p className="text-sm text-gray-400 italic">Позицій немає. Зверніться до адміна.</p>
+        ) : (
+          <div className="space-y-2">
+            {activeItems.map((item) => (
+              <button key={item.id} onClick={() => setSelected(item)}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-colors text-left ${
+                  selected?.id === item.id ? 'border-violet-500 bg-violet-50' : 'border-gray-100 bg-gray-50'
+                }`}>
+                <span className="text-sm font-medium text-gray-800">{item.name}</span>
+                <span className={`text-sm font-bold ${item.price > balance ? 'text-red-400' : 'text-violet-600'}`}>
+                  ⭐ {item.price}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Коментар</label>
+          <input value={comment} onChange={(e) => setComment(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
+            placeholder="Необов'язково" />
+        </div>
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+            <p className="text-red-600 text-sm font-medium">❌ {error}</p>
+          </div>
+        )}
+        <button onClick={handleSpend} disabled={!selected || isPending}
+          className="w-full bg-violet-600 text-white font-semibold py-3.5 rounded-xl text-base disabled:opacity-40 active:scale-95 transition-transform">
+          {isPending ? 'Списання...' : selected ? `Списати ⭐ ${selected.price}` : 'Оберіть товар'}
+        </button>
+      </div>
+    </BottomSheet>
   )
 }
 

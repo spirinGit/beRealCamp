@@ -2,6 +2,11 @@ import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
 import { authenticate, requireAdmin, requireAdminOrLeader } from '../../lib/auth.js'
 import {
+  createSquadAvatarUploadUrl,
+  isAllowedAvatarType,
+  isAvatarStorageConfigured,
+} from '../../lib/r2-storage.js'
+import {
   assignLeader,
   createSquad,
   getSquadById,
@@ -24,6 +29,7 @@ const updateBody = z.object({
   name: z.string().min(1).optional(),
   color: z.string().min(1).optional(),
   description: z.string().optional(),
+  photoUrl: z.string().url().optional(),
 })
 
 const assignLeaderBody = z.object({
@@ -31,6 +37,15 @@ const assignLeaderBody = z.object({
 })
 
 export async function registerSquadsRoutes(app: FastifyInstance) {
+  // POST /squads/avatar-upload-url
+  app.post('/avatar-upload-url', { preHandler: [requireAdminOrLeader] }, async (request, reply) => {
+    if (!isAvatarStorageConfigured()) return reply.code(503).send({ error: 'Avatar storage not configured' })
+    const { contentType } = request.body as { contentType?: string }
+    if (!contentType || !isAllowedAvatarType(contentType)) return reply.code(400).send({ error: 'Unsupported image type' })
+    const { campId } = request.user
+    return createSquadAvatarUploadUrl({ campId, contentType })
+  })
+
   // GET /squads?campId=  — admin бачить всі, leader — лише свої (BR-016)
   app.get('/', { preHandler: [authenticate] }, async (request, reply) => {
     const { campId } = request.query as { campId?: string }

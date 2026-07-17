@@ -15,6 +15,7 @@ export async function listSquadsForLeader(app: FastifyInstance, leaderId: string
       name: squads.name,
       color: squads.color,
       description: squads.description,
+      photoUrl: squads.photoUrl,
       createdAt: squads.createdAt,
     })
     .from(squads)
@@ -39,7 +40,7 @@ export async function createSquad(
 export async function updateSquad(
   app: FastifyInstance,
   id: string,
-  data: Partial<{ name: string; color: string; description: string }>,
+  data: Partial<{ name: string; color: string; description: string; photoUrl: string }>,
 ) {
   const [squad] = await app.db.update(squads).set(data).where(eq(squads.id, id)).returning()
   return squad ?? null
