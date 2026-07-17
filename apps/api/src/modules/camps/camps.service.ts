@@ -291,9 +291,12 @@ export async function listPublicShopItems(app: FastifyInstance, publicAccessCode
       rewardId: rewards.id,
       rewardName: rewards.name,
       rewardDescription: rewards.description,
+      rewardPhotoUrl: rewards.photoUrl,
+
       itemId: rewardItems.id,
       itemName: rewardItems.name,
       itemPrice: rewardItems.price,
+      itemPhotoUrl: rewardItems.photoUrl,
     })
     .from(rewards)
     .innerJoin(rewardItems, eq(rewardItems.rewardId, rewards.id))
@@ -312,17 +315,25 @@ export async function listPublicShopItems(app: FastifyInstance, publicAccessCode
       id: string
       name: string
       description: string | null
-      items: Array<{ id: string; name: string; price: number }>
+      photoUrl: string | null
+      items: Array<{
+        id: string
+        name: string
+        price: number
+        photoUrl: string | null
+      }>
     }
   >()
 
   for (const row of shopRows) {
     const existing = grouped.get(row.rewardId)
+
     if (existing) {
       existing.items.push({
         id: row.itemId,
         name: row.itemName,
         price: row.itemPrice,
+        photoUrl: row.itemPhotoUrl,
       })
       continue
     }
@@ -331,11 +342,13 @@ export async function listPublicShopItems(app: FastifyInstance, publicAccessCode
       id: row.rewardId,
       name: row.rewardName,
       description: row.rewardDescription,
+      photoUrl: row.rewardPhotoUrl,
       items: [
         {
           id: row.itemId,
           name: row.itemName,
           price: row.itemPrice,
+          photoUrl: row.itemPhotoUrl,
         },
       ],
     })

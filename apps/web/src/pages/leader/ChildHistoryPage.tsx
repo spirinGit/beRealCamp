@@ -1,6 +1,7 @@
 ﻿import { useState } from 'react'
 import { useChildBalance, useChildren } from '../../features/children'
 import { type Transaction, useTransactions } from '../../features/transactions'
+import { BottomSheet } from '../../shared/ui'
 
 function formatDate(iso: string) {
   const d = new Date(iso)
@@ -67,61 +68,47 @@ function ChildTransactionsSheet({
   const { data: txs, isLoading } = useTransactions(child.id)
 
   return (
-    <div className="fixed inset-0 z-20 flex flex-col justify-end">
-      <div
-        className="absolute inset-0 bg-black/40"
-        onClick={onClose}
-      />
-
-      <div className="relative bg-white rounded-t-3xl max-h-[85dvh] flex flex-col">
-        <div className="p-6 pb-3 flex-shrink-0">
-          <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
-
-          <div className="flex items-center gap-3">
-            <span className="text-3xl">
-              {child.gender === 'male' ? '👦' : '👧'}
-            </span>
-
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">
-                {child.firstName} {child.lastName}
-              </h2>
-
-              <p className="text-sm text-gray-400">
-                Баланс:{' '}
-                <span className="font-semibold text-violet-600">
-                  ⭐ {child.balance}
-                </span>
-              </p>
-            </div>
+    <BottomSheet onClose={onClose} className="max-h-[85dvh] flex flex-col">
+      <div className="p-6 pb-3 flex-shrink-0">
+        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+        <div className="flex items-center gap-3">
+          <span className="text-3xl">
+            {child.gender === 'male' ? '👦' : '👧'}
+          </span>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">
+              {child.firstName} {child.lastName}
+            </h2>
+            <p className="text-sm text-gray-400">
+              Баланс:{' '}
+              <span className="font-semibold text-violet-600">
+                ⭐ {child.balance}
+              </span>
+            </p>
           </div>
         </div>
-
-        <div className="overflow-y-auto flex-1 px-6 pb-6">
-          {isLoading ? (
-            <div className="space-y-3 pt-2">
-              {[...Array(4)].map((_, i) => (
-                <div
-                  key={i}
-                  className="h-12 bg-gray-100 rounded-xl animate-pulse"
-                />
-              ))}
-            </div>
-          ) : txs?.length === 0 ? (
-            <div className="text-center py-10 text-gray-400">
-              <p className="text-3xl mb-2">📋</p>
-              <p className="text-sm">Транзакцій ще немає</p>
-            </div>
-          ) : (
-            <div>
-              {txs?.map((tx) => (
-                <TransactionItem key={tx.id} tx={tx} />
-              ))}
-            </div>
-          )}
-        </div>
       </div>
-    </div>
+      <div className="overflow-y-auto flex-1 px-6 pb-6">
+        {isLoading ? (
+          <div className="space-y-3 pt-2">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-12 bg-gray-100 rounded-xl animate-pulse" />
+            ))}
+          </div>
+        ) : txs?.length === 0 ? (
+          <div className="text-center py-10 text-gray-400">
+            <p className="text-3xl mb-2">📋</p>
+            <p className="text-sm">Транзакцій ще немає</p>
+          </div>
+        ) : (
+          <div>
+            {txs?.map((tx) => (
+              <TransactionItem key={tx.id} tx={tx} />
+            ))}
+          </div>
+        )}
+      </div>
+    </BottomSheet>
   )
 }
 

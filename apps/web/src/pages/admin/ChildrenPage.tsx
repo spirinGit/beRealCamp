@@ -2,13 +2,17 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSquadAttendance } from '../../features/attendance'
 import {
   type Child,
+  uploadChildAvatarFile,
   useChildBalance,
   useChildren,
   useCreateChild,
+  useCreateChildAvatarUploadUrl,
   useDeleteChild,
   useMoveChildToSquad,
+  useUpdateChild,
 } from '../../features/children'
 import { useSquads } from '../../features/squads'
+import { BottomSheet, PhotoViewer } from '../../shared/ui'
 import {
   useBulkEarnTalents,
   useCoinRules,
@@ -72,8 +76,11 @@ function ChildCard({
       onClick={() => onClick(child)}
       className="w-full bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3 text-left active:scale-[0.98] transition-transform"
     >
-      <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center text-xl flex-shrink-0">
-        {genderLabel(child.gender)}
+      <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center text-xl flex-shrink-0 overflow-hidden">
+        {child.photoUrl
+          ? <img src={child.photoUrl} alt={child.firstName} className="w-full h-full object-cover" />
+          : genderLabel(child.gender)
+        }
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-gray-900">{child.firstName} {child.lastName}</p>
@@ -128,10 +135,8 @@ function BulkEarnSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-30 flex flex-col justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-t-3xl p-6 space-y-4 max-h-[85dvh] overflow-y-auto">
-        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
+    <BottomSheet onClose={onClose} zIndex="z-30" className="p-6 space-y-4 max-h-[85dvh] overflow-y-auto">
+      <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
         <p className="text-lg font-semibold text-gray-900">Масове нарахування ({children.length})</p>
         <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
           <button
@@ -205,8 +210,7 @@ function BulkEarnSheet({
         >
           {isPending ? 'Збереження...' : `Нарахувати вибраним +${earnAmount || 0} ⭐`}
         </button>
-      </div>
-    </div>
+    </BottomSheet>
   )
 }
 
@@ -240,8 +244,10 @@ function ChildDetailSheet({
   const [comment, setComment] = useState('')
   const [selectedSquadId, setSelectedSquadId] = useState(child.squadId)
   const [showManageSheet, setShowManageSheet] = useState(false)
+  const [showEditSheet, setShowEditSheet] = useState(false)
   const [showEarnSheet, setShowEarnSheet] = useState(false)
   const [showPenaltySheet, setShowPenaltySheet] = useState(false)
+  const [photoOpen, setPhotoOpen] = useState(false)
   const [selectedPenaltyRuleId, setSelectedPenaltyRuleId] = useState<string | null>(null)
   const [customPenaltyReason, setCustomPenaltyReason] = useState('')
   const [customPenaltyAmount, setCustomPenaltyAmount] = useState('')
@@ -330,22 +336,34 @@ function ChildDetailSheet({
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex flex-col justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-t-3xl p-6 space-y-5 max-h-[92dvh] overflow-y-auto">
-        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
+    <BottomSheet onClose={onClose} className="p-6 space-y-5 max-h-[92dvh] overflow-y-auto">
+      <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
 
+        {photoOpen && child.photoUrl && (
+          <PhotoViewer src={child.photoUrl} alt={child.firstName} onClose={() => setPhotoOpen(false)} />
+        )}
         <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-2xl font-bold text-gray-900">
-              {genderLabel(child.gender)} {child.firstName} {child.lastName}
-            </p>
-            {squad && (
-              <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: squad.color }} />
-                {squad.name}
+          <div className="flex items-center gap-3">
+            <div
+              className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden cursor-pointer"
+              onClick={() => child.photoUrl && setPhotoOpen(true)}
+            >
+              {child.photoUrl
+                ? <img src={child.photoUrl} alt={child.firstName} className="w-full h-full object-cover" />
+                : genderLabel(child.gender)
+              }
+            </div>
+            <div>
+              <p className="text-2xl font-bold text-gray-900">
+                {child.firstName} {child.lastName}
               </p>
-            )}
+              {squad && (
+                <p className="text-sm text-gray-500 mt-1 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: squad.color }} />
+                  {squad.name}
+                </p>
+              )}
+            </div>
           </div>
           <div className="bg-violet-50 rounded-2xl px-3 py-2 text-right">
             <p className="text-xs text-violet-400">Баланс</p>
@@ -406,10 +424,16 @@ function ChildDetailSheet({
 
         <div className="space-y-2">
           <button
+            onClick={() => setShowEditSheet(true)}
+            className="w-full px-4 py-3 rounded-xl bg-violet-600 text-white text-sm font-semibold"
+          >
+            ✒️  Редагувати дитину
+          </button>
+          <button
             onClick={() => setShowManageSheet(true)}
             className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-700 text-sm font-semibold"
           >
-            Керування
+            Змінити загін
           </button>
           <button
             onClick={() => setShowEarnSheet(true)}
@@ -424,14 +448,14 @@ function ChildDetailSheet({
             Покарання (зняти бали)
           </button>
         </div>
-      </div>
 
       {showManageSheet && (
-        <div className="fixed inset-0 z-30 flex flex-col justify-end">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowManageSheet(false)} />
-          <div className="relative bg-white rounded-t-3xl p-6 space-y-4">
-            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
-            <p className="text-lg font-semibold text-gray-900">Керування дитиною</p>
+        <BottomSheet onClose={() => setShowManageSheet(false)} zIndex="z-30" className="p-6 space-y-4">
+          <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-1" />
+          <div>
+            <p className="text-lg font-bold text-gray-900">Змінити загін</p>
+            <p className="text-sm text-gray-400 mt-0.5">{child.firstName} {child.lastName}</p>
+          </div>
             <div className="flex gap-2">
               <select
                 value={selectedSquadId}
@@ -459,15 +483,20 @@ function ChildDetailSheet({
             >
               {isDeleting ? 'Видалення...' : 'Видалити дитину'}
             </button>
-          </div>
-        </div>
+        </BottomSheet>
+      )}
+
+      {showEditSheet && (
+        <EditChildSheet
+          child={child}
+          onClose={() => setShowEditSheet(false)}
+          onUpdated={(updated) => { onChildUpdated(updated); setShowEditSheet(false) }}
+        />
       )}
 
       {showEarnSheet && (
-        <div className="fixed inset-0 z-30 flex flex-col justify-end">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowEarnSheet(false)} />
-          <div className="relative bg-white rounded-t-3xl p-6 space-y-4 max-h-[85dvh] overflow-y-auto">
-            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
+        <BottomSheet onClose={() => setShowEarnSheet(false)} zIndex="z-30" className="p-6 space-y-4 max-h-[85dvh] overflow-y-auto">
+          <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
             <p className="text-lg font-semibold text-gray-900">Нарахувати бали</p>
             <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
               <button
@@ -541,14 +570,11 @@ function ChildDetailSheet({
             >
               {isPending ? 'Збереження...' : `Нарахувати${earnAmount > 0 ? ` +${earnAmount}` : ''} ⭐`}
             </button>
-          </div>
-        </div>
+        </BottomSheet>
       )}
       {showPenaltySheet && (
-        <div className="fixed inset-0 z-30 flex flex-col justify-end">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setShowPenaltySheet(false)} />
-          <div className="relative bg-white rounded-t-3xl p-6 space-y-4 max-h-[85dvh] overflow-y-auto">
-            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
+        <BottomSheet onClose={() => setShowPenaltySheet(false)} zIndex="z-30" className="p-6 space-y-4 max-h-[85dvh] overflow-y-auto">
+          <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
             <p className="text-lg font-semibold text-gray-900">Покарання</p>
 
             <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
@@ -623,10 +649,160 @@ function ChildDetailSheet({
             >
               {isSpending ? 'Збереження...' : `Зняти${penaltyAmount > 0 ? ` -${penaltyAmount}` : ''} ⭐`}
             </button>
+        </BottomSheet>
+      )}
+    </BottomSheet>
+  )
+}
+
+function EditChildSheet({
+  child,
+  onClose,
+  onUpdated,
+}: {
+  child: Child
+  onClose: () => void
+  onUpdated: (child: Child) => void
+}) {
+  const [form, setForm] = useState({
+    firstName: child.firstName,
+    lastName: child.lastName,
+    dateOfBirth: child.dateOfBirth,
+    gender: child.gender,
+    parentName: child.parentName ?? '',
+    parentPhoneDigits: child.parentPhone ? child.parentPhone.replace(/^\+380/, '') : '',
+    medicalNotes: child.medicalNotes ?? '',
+  })
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const { mutateAsync: updateChild, isPending } = useUpdateChild(child.id)
+  const { mutateAsync: createAvatarUploadUrl, isPending: isUploadingAvatar } = useCreateChildAvatarUploadUrl()
+
+  function set(key: keyof typeof form, value: string) {
+    setForm((f) => ({ ...f, [key]: value }))
+  }
+
+  function handleAvatarSelect(file: File | null) {
+    if (!file) { setAvatarFile(null); setAvatarPreviewUrl(null); return }
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setSubmitError('Фото має бути у форматі JPEG, PNG або WEBP'); return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setSubmitError('Максимальний розмір фото: 5 MB'); return
+    }
+    setSubmitError(null)
+    setAvatarFile(file)
+    setAvatarPreviewUrl(URL.createObjectURL(file))
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setSubmitError(null)
+    try {
+      let photoUrl: string | undefined
+      if (avatarFile) {
+        const target = await createAvatarUploadUrl({ squadId: child.squadId, fileName: avatarFile.name, contentType: avatarFile.type })
+        await uploadChildAvatarFile(target.uploadUrl, avatarFile)
+        photoUrl = target.photoUrl
+      }
+      const updated = await updateChild({
+        firstName: form.firstName.trim(),
+        lastName: form.lastName.trim(),
+        dateOfBirth: form.dateOfBirth,
+        gender: form.gender,
+        parentName: form.parentName.trim() || undefined,
+        parentPhone: form.parentPhoneDigits ? `+380${form.parentPhoneDigits}` : undefined,
+        medicalNotes: form.medicalNotes.trim() || undefined,
+        ...(photoUrl ? { photoUrl } : {}),
+      })
+      onUpdated(updated)
+    } catch {
+      setSubmitError('Помилка збереження')
+    }
+  }
+
+  const displayPhoto = avatarPreviewUrl ?? child.photoUrl
+
+  return (
+    <BottomSheet onClose={onClose} zIndex="z-30" className="p-6 space-y-4 max-h-[92dvh] overflow-y-auto">
+      <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
+      <p className="text-lg font-bold text-gray-900">Редагувати дитину</p>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Фото</label>
+          <div className="flex items-center gap-3">
+            <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden">
+              {displayPhoto
+                ? <img src={displayPhoto} alt={child.firstName} className="w-full h-full object-cover" />
+                : <span>{child.gender === 'male' ? '👦' : '👧'}</span>
+              }
+            </div>
+            <label className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 cursor-pointer active:bg-gray-50">
+              {child.photoUrl || avatarPreviewUrl ? 'Змінити фото' : 'Додати фото'}
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+                onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)} />
+            </label>
           </div>
         </div>
-      )}
-    </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ім'я *</label>
+            <input value={form.firstName} onChange={(e) => set('firstName', e.target.value)} required
+              className="w-full px-3 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500" placeholder="Іван" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Прізвище *</label>
+            <input value={form.lastName} onChange={(e) => set('lastName', e.target.value)} required
+              className="w-full px-3 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500" placeholder="Іваненко" />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Стать *</label>
+          <div className="flex gap-3">
+            {(['male', 'female'] as const).map((g) => (
+              <button key={g} type="button" onClick={() => set('gender', g)}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-colors ${form.gender === g ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 text-gray-500'}`}>
+                {g === 'male' ? '👦 Хлопець' : '👧 Дівчина'}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Дата народження *</label>
+          <input type="date" value={form.dateOfBirth} onChange={(e) => set('dateOfBirth', e.target.value)} required
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Ім'я та прізвище батьків</label>
+          <input value={form.parentName} onChange={(e) => set('parentName', e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
+            placeholder="Напр. Олена Іваненко" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Телефон батьків</label>
+          <div className="w-full flex items-center rounded-xl border border-gray-200 focus-within:ring-2 focus-within:ring-violet-500">
+            <span className="pl-4 pr-2 py-3 text-gray-700 font-medium">+380</span>
+            <input type="text" inputMode="numeric" autoComplete="tel-national"
+              value={form.parentPhoneDigits}
+              onChange={(e) => set('parentPhoneDigits', normalizePhoneDigits(e.target.value))}
+              className="w-full pr-4 py-3 rounded-r-xl text-base focus:outline-none"
+              placeholder="XX XXX XX XX" />
+          </div>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Медичні примітки</label>
+          <input value={form.medicalNotes} onChange={(e) => set('medicalNotes', e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
+            placeholder="Алергії, особливості..." />
+        </div>
+        {submitError && <p className="text-red-500 text-sm">{submitError}</p>}
+        <button type="submit" disabled={isPending || isUploadingAvatar}
+          className="w-full bg-violet-600 text-white font-semibold py-3 rounded-xl text-base disabled:opacity-50 active:scale-95 transition-transform">
+          {isPending || isUploadingAvatar ? 'Збереження...' : 'Зберегти зміни'}
+        </button>
+      </form>
+    </BottomSheet>
   )
 }
 
@@ -647,34 +823,74 @@ function CreateChildSheet({
     parentPhoneDigits: '',
     medicalNotes: '',
   })
-  const { mutate, isPending, error } = useCreateChild()
+  const { mutateAsync: createChild, isPending, error } = useCreateChild()
+  const { mutateAsync: createAvatarUploadUrl, isPending: isPreparingAvatarUpload } = useCreateChildAvatarUploadUrl()
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   function set(key: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    mutate(
-      {
+    try {
+      setSubmitError(null)
+      let photoUrl: string | undefined
+
+      if (avatarFile) {
+        const target = await createAvatarUploadUrl({
+          squadId: form.squadId,
+          fileName: avatarFile.name,
+          contentType: avatarFile.type,
+        })
+        await uploadChildAvatarFile(target.uploadUrl, avatarFile)
+        photoUrl = target.photoUrl
+      }
+
+      await createChild({
         firstName: form.firstName,
         lastName: form.lastName,
         squadId: form.squadId,
+        photoUrl,
         dateOfBirth: form.dateOfBirth,
         gender: form.gender,
         parentName: form.parentName.trim() || undefined,
         parentPhone: form.parentPhoneDigits ? `+380${form.parentPhoneDigits}` : undefined,
         medicalNotes: form.medicalNotes.trim() || undefined,
-      },
-      { onSuccess: onClose },
-    )
+      })
+
+      onClose()
+    } catch {
+      setSubmitError('Не вдалося завантажити фото або створити дитину')
+    }
+  }
+
+  function handleAvatarSelect(file: File | null) {
+    if (!file) {
+      setAvatarFile(null)
+      setAvatarPreviewUrl(null)
+      return
+    }
+
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setSubmitError('Фото має бути у форматі JPEG, PNG або WEBP')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setSubmitError('Максимальний розмір фото: 5 MB')
+      return
+    }
+
+    setSubmitError(null)
+    setAvatarFile(file)
+    setAvatarPreviewUrl(URL.createObjectURL(file))
   }
 
   return (
-    <div className="fixed inset-0 z-20 flex flex-col justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-      <div className="relative bg-white rounded-t-3xl p-6 space-y-4 max-h-[92dvh] overflow-y-auto">
-        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-2" />
+    <BottomSheet onClose={onClose} className="p-6 space-y-4 max-h-[92dvh] overflow-y-auto">
+      <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-2" />
         <h2 className="text-xl font-bold text-gray-900">Нова дитина</h2>
 
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -684,6 +900,26 @@ function CreateChildSheet({
               <input value={form.firstName} onChange={(e) => set('firstName', e.target.value)} required
                 className="w-full px-3 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
                 placeholder="Іван" />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Аватар дитини</label>
+              <div className="flex items-center gap-3">
+                <label className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 cursor-pointer">
+                  Обрати фото
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)}
+                  />
+                </label>
+                {avatarPreviewUrl ? (
+                  <img src={avatarPreviewUrl} alt="avatar preview" className="w-12 h-12 rounded-full object-cover" />
+                ) : (
+                  <span className="text-xs text-gray-400">Фото не обрано</span>
+                )}
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Прізвище *</label>
@@ -753,15 +989,16 @@ function CreateChildSheet({
               placeholder="Алергії, особливості..." />
           </div>
 
-          {error && <p className="text-red-500 text-sm">Помилка. Перевірте дані.</p>}
+          {(error || submitError) && (
+            <p className="text-red-500 text-sm">{submitError ?? 'Помилка. Перевірте дані.'}</p>
+          )}
 
-          <button type="submit" disabled={isPending}
+          <button type="submit" disabled={isPending || isPreparingAvatarUpload}
             className="w-full bg-violet-600 text-white font-semibold py-3 rounded-xl text-base disabled:opacity-50 active:scale-95 transition-transform">
-            {isPending ? 'Збереження...' : 'Зареєструвати'}
+            {isPending || isPreparingAvatarUpload ? 'Збереження...' : 'Зареєструвати'}
           </button>
         </form>
-      </div>
-    </div>
+    </BottomSheet>
   )
 }
 

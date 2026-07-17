@@ -7,6 +7,7 @@ export interface RewardItem {
   rewardId: string
   name: string
   price: number
+  photoUrl: string | null
   isActive: boolean
 }
 
@@ -100,6 +101,66 @@ export function useToggleRewardItem(rewardId: string) {
   return useMutation({
     mutationFn: async ({ itemId, isActive }: { itemId: string; isActive: boolean }) => {
       await apiClient.patch(`/rewards/${rewardId}/items/${itemId}`, { isActive })
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['reward', rewardId] }),
+  })
+}
+
+export interface RewardAvatarUploadTarget {
+  uploadUrl: string
+  photoUrl: string
+  objectKey: string
+  expiresInSeconds: number
+  allowedContentTypes: string[]
+}
+
+export function useUpdateReward(rewardId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: { name?: string; description?: string; photoUrl?: string; isActive?: boolean }) => {
+      const { data } = await apiClient.patch<Reward>(`/rewards/${rewardId}`, body)
+      return data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['rewards'] })
+      qc.invalidateQueries({ queryKey: ['reward', rewardId] })
+    },
+  })
+}
+
+export function useDeleteReward() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (rewardId: string) => {
+      await apiClient.delete(`/rewards/${rewardId}`)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['rewards'] }),
+  })
+}
+
+export function useCreateRewardAvatarUploadUrl() {
+  return useMutation({
+    mutationFn: async (body: { contentType: string }) => {
+      const { data } = await apiClient.post<RewardAvatarUploadTarget>('/rewards/avatar-upload-url', body)
+      return data
+    },
+  })
+}
+
+export function useCreateRewardItemAvatarUploadUrl() {
+  return useMutation({
+    mutationFn: async (body: { contentType: string }) => {
+      const { data } = await apiClient.post<RewardAvatarUploadTarget>('/rewards/items/avatar-upload-url', body)
+      return data
+    },
+  })
+}
+
+export function useUpdateRewardItem(rewardId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ itemId, ...body }: { itemId: string; name?: string; price?: number; photoUrl?: string; isActive?: boolean }) => {
+      await apiClient.patch(`/rewards/${rewardId}/items/${itemId}`, body)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['reward', rewardId] }),
   })

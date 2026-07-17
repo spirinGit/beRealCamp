@@ -50,7 +50,14 @@ export interface PublicShopReward {
   id: string
   name: string
   description: string | null
-  items: Array<{ id: string; name: string; price: number }>
+  photoUrl: string | null
+
+  items: Array<{
+    id: string
+    name: string
+    price: number
+    photoUrl: string | null
+  }>
 }
 
 export interface PublicCampSearchChild extends PublicCampChild {

@@ -43,6 +43,20 @@
       "when": 1783696653106,
       "tag": "0005_foamy_juggernaut",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1752530400000,
+      "tag": "0006_squad_user_photos",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1752534000000,
+      "tag": "0007_reward_item_photos",
+      "breakpoints": true
     }
   ]
 }

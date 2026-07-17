@@ -8,6 +8,7 @@ export interface Squad {
   name: string
   color: string
   description: string | null
+  photoUrl: string | null
   createdAt: string
 }
 
@@ -85,6 +86,34 @@ export function useRenameSquad(squadId: string) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['squads'] })
+    },
+  })
+}
+
+export interface SquadAvatarUploadTarget {
+  uploadUrl: string
+  photoUrl: string
+  objectKey: string
+  expiresInSeconds: number
+  allowedContentTypes: string[]
+}
+
+export function useUpdateSquad(squadId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (body: { name?: string; color?: string; description?: string; photoUrl?: string }) => {
+      const { data } = await apiClient.patch<Squad>(`/squads/${squadId}`, body)
+      return data
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['squads'] }),
+  })
+}
+
+export function useCreateSquadAvatarUploadUrl() {
+  return useMutation({
+    mutationFn: async (body: { contentType: string }) => {
+      const { data } = await apiClient.post<SquadAvatarUploadTarget>('/squads/avatar-upload-url', body)
+      return data
     },
   })
 }
