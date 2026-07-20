@@ -11,6 +11,7 @@ export interface Transaction {
   amount: number
   reason: string
   comment: string | null
+  metadata: Record<string, unknown> | null
   createdAt: string
 }
 
@@ -18,8 +19,16 @@ export interface CoinRule {
   id: string
   key: string
   label: string
+  description: string | null
+  photoUrl: string | null
+  isAchievement: boolean
   points: number
   isActive: boolean
+}
+
+export interface TransactionRuleMetadata {
+  rulePhotoUrl?: string | null
+  ruleDescription?: string | null
 }
 
 export function useCoinRules() {
@@ -60,7 +69,7 @@ export function useTransactions(childId?: string) {
   })
 }
 
-export function useSpendTalents() {
+export function useSpendCoins() {
   const { effectiveCampId } = useAuth()
   const qc = useQueryClient()
   return useMutation({
@@ -69,6 +78,7 @@ export function useSpendTalents() {
       amount: number
       reason: string
       comment?: string
+      metadata?: TransactionRuleMetadata
     }) => {
       const { data } = await apiClient.post('/transactions/spend', {
         ...body,
@@ -99,7 +109,7 @@ export function useSearchChildren(q: string) {
   })
 }
 
-export function useEarnTalents() {
+export function useEarnCoins() {
   const { effectiveCampId } = useAuth()
   const qc = useQueryClient()
   return useMutation({
@@ -108,6 +118,7 @@ export function useEarnTalents() {
       amount: number
       reason: string
       comment?: string
+      metadata?: TransactionRuleMetadata
     }) => {
       const { data } = await apiClient.post('/transactions/earn', {
         ...body,
@@ -122,7 +133,7 @@ export function useEarnTalents() {
   })
 }
 
-export function useBulkEarnTalents() {
+export function useBulkEarnCoins() {
   const { effectiveCampId } = useAuth()
   const qc = useQueryClient()
   return useMutation({
@@ -131,6 +142,7 @@ export function useBulkEarnTalents() {
       amount: number
       reason: string
       comment?: string
+      metadata?: TransactionRuleMetadata
     }) => {
       const requests = body.childIds.map((childId) =>
         apiClient.post('/transactions/earn', {
@@ -139,6 +151,7 @@ export function useBulkEarnTalents() {
           amount: body.amount,
           reason: body.reason,
           comment: body.comment,
+          metadata: body.metadata,
         }),
       )
       await Promise.all(requests)
@@ -151,7 +164,7 @@ export function useBulkEarnTalents() {
   })
 }
 
-export function useBulkSpendTalents() {
+export function useBulkSpendCoins() {
   const { effectiveCampId } = useAuth()
   const qc = useQueryClient()
   return useMutation({
@@ -160,6 +173,7 @@ export function useBulkSpendTalents() {
       amount: number
       reason: string
       comment?: string
+      metadata?: TransactionRuleMetadata
     }) => {
       const requests = body.childIds.map((childId) =>
         apiClient.post('/transactions/spend', {
@@ -168,6 +182,7 @@ export function useBulkSpendTalents() {
           amount: body.amount,
           reason: body.reason,
           comment: body.comment,
+          metadata: body.metadata,
         }),
       )
       await Promise.all(requests)

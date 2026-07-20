@@ -1,4 +1,5 @@
 ﻿import { useState } from 'react'
+import { Coins } from 'lucide-react'
 import { useChildBalance, useChildren } from '../../features/children'
 import { type Transaction, useTransactions } from '../../features/transactions'
 import { BottomSheet } from '../../shared/ui'
@@ -13,8 +14,17 @@ function formatDate(iso: string) {
   })
 }
 
+function getRuleMeta(metadata: Record<string, unknown> | null) {
+  if (!metadata) return null
+  return {
+    rulePhotoUrl: typeof metadata.rulePhotoUrl === 'string' ? metadata.rulePhotoUrl : null,
+    ruleDescription: typeof metadata.ruleDescription === 'string' ? metadata.ruleDescription : null,
+  }
+}
+
 function TransactionItem({ tx }: { tx: Transaction }) {
   const isEarn = tx.amount > 0
+  const ruleMeta = getRuleMeta(tx.metadata)
 
   return (
     <div className="flex items-start gap-3 py-3 border-b border-gray-50 last:border-0">
@@ -23,13 +33,21 @@ function TransactionItem({ tx }: { tx: Transaction }) {
           isEarn ? 'bg-green-100' : 'bg-red-100'
         }`}
       >
-        {isEarn ? '⭐' : '🛍️'}
+        {ruleMeta?.rulePhotoUrl ? (
+          <img src={ruleMeta.rulePhotoUrl} alt={tx.reason} className="w-full h-full object-cover" />
+        ) : (
+          <Coins className="w-4 h-4 text-yellow-500" />
+        )}
       </div>
 
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-gray-800 leading-snug">
           {tx.reason}
         </p>
+
+        {ruleMeta?.ruleDescription && (
+          <p className="text-xs text-gray-400 mt-0.5">{ruleMeta.ruleDescription}</p>
+        )}
 
         {tx.comment && (
           <p className="text-xs text-gray-400 mt-0.5">{tx.comment}</p>
@@ -155,7 +173,7 @@ function ChildRow({
         </p>
 
         <p className="text-xs text-gray-300">
-          таланти
+          коіни
         </p>
       </div>
     </button>

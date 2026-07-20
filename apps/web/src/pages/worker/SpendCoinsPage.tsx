@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
+import { Coins } from 'lucide-react'
 import { useChildBalance, useChildren } from '../../features/children'
 import { useWorkerRewards, type RewardItem } from '../../features/rewards'
 import { useSquads } from '../../features/squads'
-import { useSearchChildren, useSpendTalents } from '../../features/transactions'
+import { useSearchChildren, useSpendCoins } from '../../features/transactions'
 import { BottomSheet } from '../../shared/ui'
 
 function SpendSheet({
@@ -18,7 +19,7 @@ function SpendSheet({
   const [selected, setSelected] = useState<RewardItem | null>(null)
   const [comment, setComment] = useState('')
   const [error, setError] = useState('')
-  const { mutate: spend, isPending } = useSpendTalents()
+  const { mutate: spend, isPending } = useSpendCoins()
 
   function handleSpend() {
     if (!selected) return
@@ -44,7 +45,7 @@ function SpendSheet({
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold text-gray-900">{child.firstName} {child.lastName}</h2>
-            <p className="text-sm text-gray-400 mt-0.5">Баланс: <span className="font-bold text-violet-600">⭐ {balance}</span></p>
+            <p className="text-sm text-gray-400 mt-0.5">Баланс: <span className="inline-flex items-center gap-1 font-bold text-violet-600"><Coins className="w-4 h-4 text-yellow-500" /> {balance}</span></p>
           </div>
         </div>
       </div>
@@ -61,7 +62,9 @@ function SpendSheet({
                 }`}>
                 <span className="text-sm font-medium text-gray-800">{item.name}</span>
                 <span className={`text-sm font-bold ${item.price > balance ? 'text-red-400' : 'text-violet-600'}`}>
-                  ⭐ {item.price}
+                  <span className="inline-flex items-center gap-1">
+                    <Coins className="w-4 h-4 text-yellow-500" /> {item.price}
+                  </span>
                 </span>
               </button>
             ))}
@@ -80,7 +83,7 @@ function SpendSheet({
         )}
         <button onClick={handleSpend} disabled={!selected || isPending}
           className="w-full bg-violet-600 text-white font-semibold py-3.5 rounded-xl text-base disabled:opacity-40 active:scale-95 transition-transform">
-          {isPending ? 'Списання...' : selected ? `Списати ⭐ ${selected.price}` : 'Оберіть товар'}
+          {isPending ? 'Списання...' : selected ? <span className="inline-flex items-center justify-center gap-1"><Coins className="w-4 h-4 text-yellow-500" /> Списати {selected.price}</span> : 'Оберіть товар'}
         </button>
       </div>
     </BottomSheet>

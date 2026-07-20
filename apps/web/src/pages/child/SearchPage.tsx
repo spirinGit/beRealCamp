@@ -5,6 +5,7 @@ import {
   usePublicChildSearch,
   usePublicSquadChildren,
 } from '../../features/camps'
+import { PhotoViewer } from '../../shared/ui'
 
 function formatDate(value: string | null) {
   if (!value) return '—'
@@ -18,14 +19,12 @@ function formatDate(value: string | null) {
 function ChildCard({
   firstName,
   lastName,
-  photoUrl,
   balance,
   subtitle,
   onClick,
 }: {
   firstName: string
   lastName: string
-  photoUrl: string | null
   balance: number
   subtitle?: string
   onClick: () => void
@@ -36,12 +35,8 @@ function ChildCard({
       onClick={onClick}
       className="w-full bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3 text-left active:scale-[0.99] transition-transform"
     >
-      <div className="w-12 h-12 rounded-full bg-violet-100 overflow-hidden flex items-center justify-center text-lg font-semibold text-violet-700 shrink-0">
-        {photoUrl ? (
-          <img src={photoUrl} alt={`${firstName} ${lastName}`} className="w-full h-full object-cover" />
-        ) : (
-          `${firstName[0] ?? ''}${lastName[0] ?? ''}`
-        )}
+        <div className="w-12 h-12 rounded-full bg-violet-100 flex items-center justify-center text-lg font-semibold text-violet-700 shrink-0">
+          {`${firstName[0] ?? ''}${lastName[0] ?? ''}`}
       </div>
       <div className="flex-1 min-w-0">
         <p className="font-semibold text-gray-900 truncate">
@@ -66,6 +61,7 @@ export function SearchPage() {
     searchParams.get('squadId'),
   )
   const [isGuidelinesOpen, setIsGuidelinesOpen] = useState(false)
+  const [activePhoto, setActivePhoto] = useState<{ src: string; alt: string } | null>(null)
   const trimmedQuery = query.trim()
   const isSearchMode = trimmedQuery.length >= 2
 
@@ -100,6 +96,8 @@ export function SearchPage() {
     [publicCamp?.squads, selectedSquadId],
   )
 
+  const selectedSquadLeaders = selectedSquad?.leaders ?? []
+
   function openChild(childId: string) {
     navigate(`/child/profile?code=${code}&childId=${childId}`)
   }
@@ -116,6 +114,14 @@ export function SearchPage() {
 
   return (
     <div className="min-h-dvh bg-gray-50 max-w-lg mx-auto p-4 space-y-4">
+      {activePhoto && (
+        <PhotoViewer
+          src={activePhoto.src}
+          alt={activePhoto.alt}
+          onClose={() => setActivePhoto(null)}
+        />
+      )}
+
       <div className="bg-white rounded-3xl p-5 shadow-sm">
         {isLoadingCamp ? (
           <div className="space-y-2 animate-pulse">
@@ -225,7 +231,6 @@ export function SearchPage() {
                       key={child.id}
                       firstName={child.firstName}
                       lastName={child.lastName}
-                      photoUrl={child.photoUrl}
                       balance={child.balance}
                       subtitle={child.squadName}
                       onClick={() => openChild(child.id)}
@@ -245,12 +250,90 @@ export function SearchPage() {
                   <h2 className="text-lg font-bold text-gray-900">
                     {selectedSquad?.name ?? 'Оберіть загін'}
                   </h2>
-                  {selectedSquad?.description && (
-                    <p className="text-sm text-gray-500 mt-0.5">{selectedSquad.description}</p>
-                  )}
                 </div>
                 {isLoadingChildren && <span className="text-sm text-gray-400">Завантаження...</span>}
               </div>
+
+              {selectedSquad && (
+                <div className="bg-white rounded-2xl p-4 shadow-sm space-y-4">
+                  <div className="flex items-start gap-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!selectedSquad.photoUrl) return
+                        setActivePhoto({ src: selectedSquad.photoUrl, alt: selectedSquad.name })
+                      }}
+                      className="w-16 h-16 rounded-2xl overflow-hidden shrink-0 ring-1 ring-gray-100 disabled:cursor-default"
+                      style={{ backgroundColor: selectedSquad.color }}
+                      disabled={!selectedSquad.photoUrl}
+                      aria-label={`Збільшити фото загону ${selectedSquad.name}`}
+                    >
+                      {selectedSquad.photoUrl ? (
+                        <img
+                          src={selectedSquad.photoUrl}
+                          alt={selectedSquad.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : null}
+                    </button>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs uppercase tracking-wide text-gray-400">Фото загону</p>
+                      <p className="font-semibold text-gray-900 truncate">{selectedSquad.name}</p>
+                      <p className="text-sm text-gray-500">{selectedSquad.childCount} дітей</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-gray-400 mb-2">Лідери загону</p>
+                    {selectedSquadLeaders.length ? (
+                      <div className="flex flex-wrap gap-2">
+                        {selectedSquadLeaders.map((leader) => (
+                          <div
+                            key={leader.id}
+                            className="flex items-center gap-2 rounded-full bg-gray-50 px-3 py-2 border border-gray-100"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!leader.photoUrl) return
+                                setActivePhoto({
+                                  src: leader.photoUrl,
+                                  alt: `${leader.firstName} ${leader.lastName}`,
+                                })
+                              }}
+                              className="w-8 h-8 rounded-full bg-violet-100 overflow-hidden flex items-center justify-center text-xs font-semibold text-violet-700 shrink-0 disabled:cursor-default"
+                              disabled={!leader.photoUrl}
+                              aria-label={`Збільшити фото лідера ${leader.firstName} ${leader.lastName}`}
+                            >
+                              {leader.photoUrl ? (
+                                <img
+                                  src={leader.photoUrl}
+                                  alt={`${leader.firstName} ${leader.lastName}`}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                `${leader.firstName[0] ?? ''}${leader.lastName[0] ?? ''}`
+                              )}
+                            </button>
+                            <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                              {leader.firstName} {leader.lastName}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">Поки немає призначених лідерів.</p>
+                    )}
+                  </div>
+
+                  {selectedSquad.description && (
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-gray-400 mb-1">Опис загону</p>
+                      <p className="text-sm text-gray-600 whitespace-pre-line">{selectedSquad.description}</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {squadChildren?.children.length ? (
                 <div className="space-y-3">
@@ -259,7 +342,6 @@ export function SearchPage() {
                       key={child.id}
                       firstName={child.firstName}
                       lastName={child.lastName}
-                      photoUrl={child.photoUrl}
                       balance={child.balance}
                       onClick={() => openChild(child.id)}
                     />

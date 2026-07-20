@@ -31,7 +31,7 @@ export function LoginPage() {
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center px-6">
       <div className="mb-10 text-center">
         <h1 className="text-3xl font-bold text-gray-900">⛺ beRealCamp</h1>
-        <p className="text-gray-500 mt-1 text-sm">Система талантів</p>
+        <p className="text-gray-500 mt-1 text-sm">Система оцінювання</p>
       </div>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-sm p-6 space-y-4">

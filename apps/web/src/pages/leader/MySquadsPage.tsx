@@ -13,12 +13,12 @@ import { type Squad, useCreateSquadAvatarUploadUrl, useSquads, useUpdateSquad } 
 import { BottomSheet, PhotoViewer } from '../../shared/ui'
 import {
   type CoinRule,
-  useBulkEarnTalents,
-  useBulkSpendTalents,
+  useBulkEarnCoins,
+  useBulkSpendCoins,
   useCoinRules,
-  useEarnTalents,
+  useEarnCoins,
   usePenaltyRules,
-  useSpendTalents,
+  useSpendCoins,
 } from '../../features/transactions'
 
 function formatBirthDate(value: string) {
@@ -338,6 +338,7 @@ function EarnSheet({
   const [customReason, setCustomReason] = useState('')
   const [customAmount, setCustomAmount] = useState('')
   const [comment, setComment] = useState('')
+  const [isAchievement, setIsAchievement] = useState(false)
   const [mode, setMode] = useState<'preset' | 'custom'>('preset')
   const [showAwardForm, setShowAwardForm] = useState(false)
   const [penaltySelected, setPenaltySelected] = useState<CoinRule | null>(null)
@@ -349,8 +350,8 @@ function EarnSheet({
   const [showAttendance, setShowAttendance] = useState(false)
   const [showEditChild, setShowEditChild] = useState(false)
   const [photoOpen, setPhotoOpen] = useState(false)
-  const { mutate, isPending } = useEarnTalents()
-  const { mutate: spend, isPending: isSpending } = useSpendTalents()
+  const { mutate, isPending } = useEarnCoins()
+  const { mutate: spend, isPending: isSpending } = useSpendCoins()
   const { mutate: markAttendance, isPending: isMarkingAttendance } = useMarkAttendance(squadId)
   const { data: balance = 0 } = useChildBalance(child.id)
 
@@ -358,13 +359,37 @@ function EarnSheet({
   const canSubmit = mode === 'preset' ? !!selected : !!customReason && earnAmount > 0
   const spendAmount = penaltyMode === 'preset' ? Math.abs(penaltySelected?.points ?? 0) : Number(penaltyCustomAmount) || 0
   const canSpend = penaltyMode === 'preset' ? !!penaltySelected : !!penaltyCustomReason && spendAmount > 0
+  const earnReason = mode === 'preset' ? selected?.label ?? '' : customReason
+  const shouldMarkAchievement = (mode === 'preset' && selected?.isAchievement === true) || isAchievement
+  const earnMetadata = {
+    ...(selected?.photoUrl ? { rulePhotoUrl: selected.photoUrl } : {}),
+    ...(selected?.description ? { ruleDescription: selected.description } : {}),
+    ...(shouldMarkAchievement
+      ? {
+          isAchievement: true,
+          achievementKey: mode === 'preset' && selected ? `rule:${selected.id}` : earnReason.trim().toLowerCase(),
+        }
+      : {}),
+  }
+  const penaltyMetadata = penaltySelected?.photoUrl || penaltySelected?.description
+    ? { rulePhotoUrl: penaltySelected.photoUrl, ruleDescription: penaltySelected.description ?? undefined }
+    : undefined
   const joinedDay = formatDayKey(new Date(joinedAt))
   const canMarkToday = attendanceToday.length > 0 && attendanceDays.includes(attendanceToday) && joinedDay <= attendanceToday
 
   function handleSubmit() {
     if (!canSubmit) return
     const reason = mode === 'preset' ? selected!.label : customReason
-    mutate({ childId: child.id, amount: earnAmount, reason, comment: comment || undefined }, { onSuccess: onClose })
+    mutate(
+      {
+        childId: child.id,
+        amount: earnAmount,
+        reason,
+        comment: comment || undefined,
+        metadata: Object.keys(earnMetadata).length > 0 ? earnMetadata : undefined,
+      },
+      { onSuccess: onClose },
+    )
   }
 
   function handlePenaltySubmit() {
@@ -376,6 +401,7 @@ function EarnSheet({
         amount: spendAmount,
         reason,
         comment: penaltyComment || undefined,
+        metadata: penaltyMetadata,
       },
       { onSuccess: onClose },
     )
@@ -525,6 +551,16 @@ function EarnSheet({
             )}
 
             <input value={comment} onChange={(e) => setComment(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm" placeholder="Коментар (необов'язково)" />
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={shouldMarkAchievement}
+                onChange={(e) => setIsAchievement(e.target.checked)}
+                disabled={mode === 'preset' && selected?.isAchievement === true}
+                className="w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+              />
+              Це ачівка
+            </label>
             <button onClick={handleSubmit} disabled={!canSubmit || isPending} className="w-full bg-violet-600 text-white font-semibold py-3 rounded-xl disabled:opacity-50">
               {isPending ? 'Збереження...' : `Нарахувати +${earnAmount || 0} ⭐`}
             </button>
@@ -722,15 +758,36 @@ function BulkEarnSheet({ children, rules, onClose }: { children: Child[]; rules:
   const [customReason, setCustomReason] = useState('')
   const [customAmount, setCustomAmount] = useState('')
   const [comment, setComment] = useState('')
+  const [isAchievement, setIsAchievement] = useState(false)
   const [mode, setMode] = useState<'preset' | 'custom'>('preset')
-  const { mutate, isPending } = useBulkEarnTalents()
+  const { mutate, isPending } = useBulkEarnCoins()
   const earnAmount = mode === 'preset' ? (selected?.points ?? 0) : Number(customAmount) || 0
   const canSubmit = mode === 'preset' ? !!selected : !!customReason && earnAmount > 0
+  const shouldMarkAchievement = (mode === 'preset' && selected?.isAchievement === true) || isAchievement
 
   function handleSubmit() {
     if (!canSubmit) return
     const reason = mode === 'preset' ? selected!.label : customReason
-    mutate({ childIds: children.map((c) => c.id), amount: earnAmount, reason, comment: comment || undefined }, { onSuccess: onClose })
+    const metadata = {
+      ...(selected?.photoUrl ? { rulePhotoUrl: selected.photoUrl } : {}),
+      ...(selected?.description ? { ruleDescription: selected.description } : {}),
+      ...(shouldMarkAchievement
+        ? {
+            isAchievement: true,
+            achievementKey: mode === 'preset' && selected ? `rule:${selected.id}` : reason.trim().toLowerCase(),
+          }
+        : {}),
+    }
+    mutate(
+      {
+        childIds: children.map((c) => c.id),
+        amount: earnAmount,
+        reason,
+        comment: comment || undefined,
+        metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+      },
+      { onSuccess: onClose },
+    )
   }
 
   return (
@@ -757,6 +814,16 @@ function BulkEarnSheet({ children, rules, onClose }: { children: Child[]; rules:
           </div>
         )}
         <input value={comment} onChange={(e) => setComment(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm" placeholder="Коментар (необов'язково)" />
+        <label className="flex items-center gap-2 text-sm text-gray-700">
+          <input
+            type="checkbox"
+            checked={shouldMarkAchievement}
+            onChange={(e) => setIsAchievement(e.target.checked)}
+            disabled={mode === 'preset' && selected?.isAchievement === true}
+            className="w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
+          />
+          Це ачівка
+        </label>
         <button onClick={handleSubmit} disabled={!canSubmit || isPending || children.length === 0} className="w-full bg-violet-600 text-white font-semibold py-3 rounded-xl disabled:opacity-50">
           {isPending ? 'Збереження...' : `Нарахувати вибраним +${earnAmount || 0} ⭐`}
         </button>
@@ -770,14 +837,14 @@ function BulkPenaltySheet({ children, rules, onClose }: { children: Child[]; rul
   const [customAmount, setCustomAmount] = useState('')
   const [comment, setComment] = useState('')
   const [mode, setMode] = useState<'preset' | 'custom'>('preset')
-  const { mutate, isPending } = useBulkSpendTalents()
+  const { mutate, isPending } = useBulkSpendCoins()
   const spendAmount = mode === 'preset' ? Math.abs(selected?.points ?? 0) : Number(customAmount) || 0
   const canSubmit = mode === 'preset' ? !!selected : !!customReason && spendAmount > 0
 
   function handleSubmit() {
     if (!canSubmit) return
     const reason = mode === 'preset' ? selected!.label : customReason
-    mutate({ childIds: children.map((c) => c.id), amount: spendAmount, reason, comment: comment || undefined }, { onSuccess: onClose })
+    mutate({ childIds: children.map((c) => c.id), amount: spendAmount, reason, comment: comment || undefined, metadata: selected?.photoUrl || selected?.description ? { rulePhotoUrl: selected.photoUrl, ruleDescription: selected.description ?? undefined } : undefined }, { onSuccess: onClose })
   }
 
   return (

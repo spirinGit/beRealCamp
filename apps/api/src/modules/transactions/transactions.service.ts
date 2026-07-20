@@ -56,6 +56,7 @@ export async function earnTalents(
     amount: number
     reason: string
     comment?: string
+    metadata?: Record<string, unknown>
   },
 ) {
   const [tx] = await app.db
@@ -68,7 +69,7 @@ export async function earnTalents(
       amount: Math.abs(data.amount), // завжди додатні
       reason: data.reason,
       comment: data.comment ?? null,
-      metadata: {},
+      metadata: data.metadata ?? {},
     })
     .returning()
   return tx
@@ -83,6 +84,7 @@ export async function spendTalents(
     amount: number
     reason: string
     comment?: string
+    metadata?: Record<string, unknown>
   },
 ): Promise<{ ok: true; tx: typeof coinTransactions.$inferSelect } | { ok: false; error: string }> {
   const balance = await getChildBalance(app, data.childId)
@@ -101,7 +103,7 @@ export async function spendTalents(
       amount: -Math.abs(data.amount), // завжди відемне
       reason: data.reason,
       comment: data.comment ?? null,
-      metadata: {},
+      metadata: data.metadata ?? {},
     })
     .returning()
   return { ok: true, tx }

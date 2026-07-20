@@ -27,7 +27,14 @@ export interface PublicCampSquad {
   name: string
   color: string
   description: string | null
+  photoUrl: string | null
   childCount: number
+  leaders: Array<{
+    id: string
+    firstName: string
+    lastName: string
+    photoUrl: string | null
+  }>
 }
 
 export interface PublicCampChild {
@@ -43,6 +50,7 @@ export interface PublicChildTransaction {
   type: string
   amount: number
   reason: string
+  metadata: Record<string, unknown> | null
   createdAt: string
 }
 
