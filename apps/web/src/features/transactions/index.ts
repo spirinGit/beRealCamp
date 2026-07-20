@@ -60,7 +60,7 @@ export function useTransactions(childId?: string) {
   })
 }
 
-export function useSpendTalents() {
+export function useSpendCoins() {
   const { effectiveCampId } = useAuth()
   const qc = useQueryClient()
   return useMutation({
@@ -99,7 +99,7 @@ export function useSearchChildren(q: string) {
   })
 }
 
-export function useEarnTalents() {
+export function useEarnCoins() {
   const { effectiveCampId } = useAuth()
   const qc = useQueryClient()
   return useMutation({
@@ -122,7 +122,7 @@ export function useEarnTalents() {
   })
 }
 
-export function useBulkEarnTalents() {
+export function useBulkEarnCoins() {
   const { effectiveCampId } = useAuth()
   const qc = useQueryClient()
   return useMutation({
@@ -151,7 +151,7 @@ export function useBulkEarnTalents() {
   })
 }
 
-export function useBulkSpendTalents() {
+export function useBulkSpendCoins() {
   const { effectiveCampId } = useAuth()
   const qc = useQueryClient()
   return useMutation({

@@ -11,7 +11,7 @@ const sections = [
     to: '/admin/rules',
     icon: '⭐',
     title: 'Правила нарахування',
-    description: 'Пресети талантів для лідерів',
+    description: 'Пресети коінів для лідерів',
   },
   {
     to: '/admin/penalty-rules',

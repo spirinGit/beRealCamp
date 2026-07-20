@@ -13,12 +13,12 @@ import { type Squad, useCreateSquadAvatarUploadUrl, useSquads, useUpdateSquad } 
 import { BottomSheet, PhotoViewer } from '../../shared/ui'
 import {
   type CoinRule,
-  useBulkEarnTalents,
-  useBulkSpendTalents,
+  useBulkEarnCoins,
+  useBulkSpendCoins,
   useCoinRules,
-  useEarnTalents,
+  useEarnCoins,
   usePenaltyRules,
-  useSpendTalents,
+  useSpendCoins,
 } from '../../features/transactions'
 
 function formatBirthDate(value: string) {
@@ -349,8 +349,8 @@ function EarnSheet({
   const [showAttendance, setShowAttendance] = useState(false)
   const [showEditChild, setShowEditChild] = useState(false)
   const [photoOpen, setPhotoOpen] = useState(false)
-  const { mutate, isPending } = useEarnTalents()
-  const { mutate: spend, isPending: isSpending } = useSpendTalents()
+  const { mutate, isPending } = useEarnCoins()
+  const { mutate: spend, isPending: isSpending } = useSpendCoins()
   const { mutate: markAttendance, isPending: isMarkingAttendance } = useMarkAttendance(squadId)
   const { data: balance = 0 } = useChildBalance(child.id)
 
@@ -723,7 +723,7 @@ function BulkEarnSheet({ children, rules, onClose }: { children: Child[]; rules:
   const [customAmount, setCustomAmount] = useState('')
   const [comment, setComment] = useState('')
   const [mode, setMode] = useState<'preset' | 'custom'>('preset')
-  const { mutate, isPending } = useBulkEarnTalents()
+  const { mutate, isPending } = useBulkEarnCoins()
   const earnAmount = mode === 'preset' ? (selected?.points ?? 0) : Number(customAmount) || 0
   const canSubmit = mode === 'preset' ? !!selected : !!customReason && earnAmount > 0
 
@@ -770,7 +770,7 @@ function BulkPenaltySheet({ children, rules, onClose }: { children: Child[]; rul
   const [customAmount, setCustomAmount] = useState('')
   const [comment, setComment] = useState('')
   const [mode, setMode] = useState<'preset' | 'custom'>('preset')
-  const { mutate, isPending } = useBulkSpendTalents()
+  const { mutate, isPending } = useBulkSpendCoins()
   const spendAmount = mode === 'preset' ? Math.abs(selected?.points ?? 0) : Number(customAmount) || 0
   const canSubmit = mode === 'preset' ? !!selected : !!customReason && spendAmount > 0
 

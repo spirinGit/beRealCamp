@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
-import { camps, children, coinTransactions, rewardItems, rewards, squads } from '../../db/schema/index.js'
+import { camps, children, coinTransactions, rewardItems, rewards, squadLeaders, squads, users } from '../../db/schema/index.js'
 
 export async function listCamps(app: FastifyInstance) {
   return app.db.select().from(camps).orderBy(camps.createdAt)
@@ -114,6 +114,40 @@ function toPublicCampSummary(camp: typeof camps.$inferSelect) {
   }
 }
 
+async function getPublicSquadLeadersMap(app: FastifyInstance, squadIds: string[]) {
+  if (squadIds.length === 0) {
+    return new Map<string, Array<{ id: string; firstName: string; lastName: string; photoUrl: string | null }>>()
+  }
+
+  const rows = await app.db
+    .select({
+      squadId: squadLeaders.squadId,
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      photoUrl: users.photoUrl,
+    })
+    .from(squadLeaders)
+    .innerJoin(users, eq(users.id, squadLeaders.leaderId))
+    .where(inArray(squadLeaders.squadId, squadIds))
+    .orderBy(users.lastName, users.firstName)
+
+  const grouped = new Map<string, Array<{ id: string; firstName: string; lastName: string; photoUrl: string | null }>>()
+
+  for (const row of rows) {
+    const leaders = grouped.get(row.squadId) ?? []
+    leaders.push({
+      id: row.id,
+      firstName: row.firstName,
+      lastName: row.lastName,
+      photoUrl: row.photoUrl,
+    })
+    grouped.set(row.squadId, leaders)
+  }
+
+  return grouped
+}
+
 export async function listPublicSquads(app: FastifyInstance, publicAccessCode: string) {
   const camp = await getCampByPublicAccessCode(app, publicAccessCode)
   if (!camp) return null
@@ -124,6 +158,7 @@ export async function listPublicSquads(app: FastifyInstance, publicAccessCode: s
       name: squads.name,
       color: squads.color,
       description: squads.description,
+      photoUrl: squads.photoUrl,
       childCount: sql<number>`count(${children.id})`,
     })
     .from(squads)
@@ -132,11 +167,17 @@ export async function listPublicSquads(app: FastifyInstance, publicAccessCode: s
     .groupBy(squads.id)
     .orderBy(squads.name)
 
+  const leadersMap = await getPublicSquadLeadersMap(
+    app,
+    squadRows.map((squad) => squad.id),
+  )
+
   return {
     camp: toPublicCampSummary(camp),
     squads: squadRows.map((squad) => ({
       ...squad,
       childCount: Number(squad.childCount ?? 0),
+      leaders: leadersMap.get(squad.id) ?? [],
     })),
   }
 }
@@ -155,6 +196,7 @@ export async function listPublicSquadChildren(
       name: squads.name,
       color: squads.color,
       description: squads.description,
+      photoUrl: squads.photoUrl,
     })
     .from(squads)
     .where(and(eq(squads.id, squadId), eq(squads.campId, camp.id)))
@@ -177,10 +219,14 @@ export async function listPublicSquadChildren(
     app,
     childRows.map((child) => child.id),
   )
+  const leadersMap = await getPublicSquadLeadersMap(app, [squad.id])
 
   return {
     camp: toPublicCampSummary(camp),
-    squad,
+    squad: {
+      ...squad,
+      leaders: leadersMap.get(squad.id) ?? [],
+    },
     children: childRows.map((child) => ({
       ...child,
       balance: balances.get(child.id) ?? 0,

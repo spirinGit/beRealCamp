@@ -57,7 +57,7 @@ function RuleRow({ rule }: { rule: CoinRule }) {
     <div className={`bg-white rounded-2xl px-4 py-3.5 shadow-sm flex items-center gap-3 ${!rule.isActive ? 'opacity-50' : ''}`}>
       <div className="flex-1 min-w-0">
         <p className="font-medium text-gray-900 text-sm">{rule.label}</p>
-        <p className="text-xs text-violet-600 font-semibold mt-0.5">+{rule.points} талантів</p>
+        <p className="text-xs text-violet-600 font-semibold mt-0.5">+{rule.points} коінів</p>
       </div>
       <button
         onClick={() => toggle(rule.id)}
@@ -96,7 +96,7 @@ function CreateRuleSheet({ onClose }: { onClose: () => void }) {
               placeholder="Командна робота, Добрі справи..." />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Кількість талантів *</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Кількість коінів *</label>
             <input type="number" min="1" value={points} onChange={(e) => setPoints(e.target.value)} required
               className="w-full px-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
               placeholder="1000" />

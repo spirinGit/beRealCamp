@@ -14,11 +14,11 @@ import {
 import { useSquads } from '../../features/squads'
 import { BottomSheet, PhotoViewer } from '../../shared/ui'
 import {
-  useBulkEarnTalents,
+  useBulkEarnCoins,
   useCoinRules,
-  useEarnTalents,
+  useEarnCoins,
   usePenaltyRules,
-  useSpendTalents,
+  useSpendCoins,
 } from '../../features/transactions'
 
 function genderLabel(g: Child['gender']) {
@@ -114,7 +114,7 @@ function BulkEarnSheet({
   const [customReason, setCustomReason] = useState('')
   const [customAmount, setCustomAmount] = useState('')
   const [comment, setComment] = useState('')
-  const { mutate, isPending } = useBulkEarnTalents()
+  const { mutate, isPending } = useBulkEarnCoins()
 
   const selectedRule = rules.find((r) => r.id === selectedRuleId) ?? null
   const earnAmount = mode === 'preset' ? (selectedRule?.points ?? 0) : Number(customAmount) || 0
@@ -233,8 +233,8 @@ function ChildDetailSheet({
   const { data: attendanceOverview } = useSquadAttendance(child.squadId)
   const { data: rules = [] } = useCoinRules()
   const { data: penaltyRules = [] } = usePenaltyRules()
-  const { mutate: earn, isPending } = useEarnTalents()
-  const { mutate: spend, isPending: isSpending } = useSpendTalents()
+  const { mutate: earn, isPending } = useEarnCoins()
+  const { mutate: spend, isPending: isSpending } = useSpendCoins()
   const { mutate: moveToSquad, isPending: isMoving } = useMoveChildToSquad()
   const { mutate: deleteChild, isPending: isDeleting } = useDeleteChild()
   const [mode, setMode] = useState<'preset' | 'custom'>('preset')

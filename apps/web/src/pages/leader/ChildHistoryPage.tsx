@@ -155,7 +155,7 @@ function ChildRow({
         </p>
 
         <p className="text-xs text-gray-300">
-          таланти
+          коіни
         </p>
       </div>
     </button>
