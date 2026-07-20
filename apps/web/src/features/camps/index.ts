@@ -50,6 +50,7 @@ export interface PublicChildTransaction {
   type: string
   amount: number
   reason: string
+  metadata: Record<string, unknown> | null
   createdAt: string
 }
 

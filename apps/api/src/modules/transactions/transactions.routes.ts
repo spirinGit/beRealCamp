@@ -14,6 +14,7 @@ const earnBody = z.object({
   amount: z.number().int().positive(),
   reason: z.string().min(1),
   comment: z.string().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
 const spendBody = z.object({
@@ -22,6 +23,7 @@ const spendBody = z.object({
   amount: z.number().int().positive(),
   reason: z.string().min(1),
   comment: z.string().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
 const requireSpendRole = requireRole('Worker', 'Administrator', 'Leader')

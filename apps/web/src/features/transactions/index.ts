@@ -11,6 +11,7 @@ export interface Transaction {
   amount: number
   reason: string
   comment: string | null
+  metadata: Record<string, unknown> | null
   createdAt: string
 }
 
@@ -18,8 +19,16 @@ export interface CoinRule {
   id: string
   key: string
   label: string
+  description: string | null
+  photoUrl: string | null
+  isAchievement: boolean
   points: number
   isActive: boolean
+}
+
+export interface TransactionRuleMetadata {
+  rulePhotoUrl?: string | null
+  ruleDescription?: string | null
 }
 
 export function useCoinRules() {
@@ -69,6 +78,7 @@ export function useSpendCoins() {
       amount: number
       reason: string
       comment?: string
+      metadata?: TransactionRuleMetadata
     }) => {
       const { data } = await apiClient.post('/transactions/spend', {
         ...body,
@@ -108,6 +118,7 @@ export function useEarnCoins() {
       amount: number
       reason: string
       comment?: string
+      metadata?: TransactionRuleMetadata
     }) => {
       const { data } = await apiClient.post('/transactions/earn', {
         ...body,
@@ -131,6 +142,7 @@ export function useBulkEarnCoins() {
       amount: number
       reason: string
       comment?: string
+      metadata?: TransactionRuleMetadata
     }) => {
       const requests = body.childIds.map((childId) =>
         apiClient.post('/transactions/earn', {
@@ -139,6 +151,7 @@ export function useBulkEarnCoins() {
           amount: body.amount,
           reason: body.reason,
           comment: body.comment,
+          metadata: body.metadata,
         }),
       )
       await Promise.all(requests)
@@ -160,6 +173,7 @@ export function useBulkSpendCoins() {
       amount: number
       reason: string
       comment?: string
+      metadata?: TransactionRuleMetadata
     }) => {
       const requests = body.childIds.map((childId) =>
         apiClient.post('/transactions/spend', {
@@ -168,6 +182,7 @@ export function useBulkSpendCoins() {
           amount: body.amount,
           reason: body.reason,
           comment: body.comment,
+          metadata: body.metadata,
         }),
       )
       await Promise.all(requests)

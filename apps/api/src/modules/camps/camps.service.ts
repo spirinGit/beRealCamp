@@ -1,7 +1,17 @@
 import { randomUUID } from 'node:crypto'
 import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
-import { camps, children, coinTransactions, rewardItems, rewards, squadLeaders, squads, users } from '../../db/schema/index.js'
+import {
+  camps,
+  children,
+  coinRules,
+  coinTransactions,
+  rewardItems,
+  rewards,
+  squadLeaders,
+  squads,
+  users,
+} from '../../db/schema/index.js'
 
 export async function listCamps(app: FastifyInstance) {
   return app.db.select().from(camps).orderBy(camps.createdAt)
@@ -311,6 +321,7 @@ export async function getPublicChildProfile(
       type: coinTransactions.type,
       amount: coinTransactions.amount,
       reason: coinTransactions.reason,
+      metadata: coinTransactions.metadata,
       createdAt: coinTransactions.createdAt,
     })
     .from(coinTransactions)
@@ -318,12 +329,45 @@ export async function getPublicChildProfile(
     .orderBy(desc(coinTransactions.createdAt))
     .limit(100)
 
+  const achievementRules = await app.db
+    .select({
+      id: coinRules.id,
+      label: coinRules.label,
+      description: coinRules.description,
+      photoUrl: coinRules.photoUrl,
+    })
+    .from(coinRules)
+    .where(and(eq(coinRules.campId, camp.id), eq(coinRules.isAchievement, true), eq(coinRules.isActive, true)))
+
+  const achievementRuleByLabel = new Map(achievementRules.map((rule) => [rule.label.trim().toLowerCase(), rule]))
+
+  const transactionsWithAchievementMeta = transactions.map((tx) => {
+    const metadata = (tx.metadata && typeof tx.metadata === 'object' ? tx.metadata : null) as Record<string, unknown> | null
+    const hasAchievementFlag = metadata?.isAchievement === true
+    if (hasAchievementFlag || tx.amount <= 0) return tx
+
+    const matchedRule = achievementRuleByLabel.get(tx.reason.trim().toLowerCase())
+    if (!matchedRule) return tx
+
+    return {
+      ...tx,
+      metadata: {
+        ...(metadata ?? {}),
+        isAchievement: true,
+        achievementKey: typeof metadata?.achievementKey === 'string' ? metadata.achievementKey : `rule:${matchedRule.id}`,
+        rulePhotoUrl: typeof metadata?.rulePhotoUrl === 'string' ? metadata.rulePhotoUrl : matchedRule.photoUrl,
+        ruleDescription:
+          typeof metadata?.ruleDescription === 'string' ? metadata.ruleDescription : matchedRule.description,
+      },
+    }
+  })
+
   return {
     camp: toPublicCampSummary(camp),
     child: {
       ...child,
       balance: Number(balance[0]?.total ?? 0),
-      transactions,
+      transactions: transactionsWithAchievementMeta,
     },
   }
 }

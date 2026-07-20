@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Coins } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { usePublicChildProfile } from '../../features/camps'
 
@@ -12,12 +12,21 @@ function formatTxDate(value: string) {
   })
 }
 
+function getRuleMeta(metadata: Record<string, unknown> | null) {
+  if (!metadata) return null
+  return {
+    rulePhotoUrl: typeof metadata.rulePhotoUrl === 'string' ? metadata.rulePhotoUrl : null,
+    ruleDescription: typeof metadata.ruleDescription === 'string' ? metadata.ruleDescription : null,
+    isAchievement: metadata.isAchievement === true,
+    achievementKey: typeof metadata.achievementKey === 'string' ? metadata.achievementKey : null,
+  }
+}
+
 export function ChildProfilePage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const code = searchParams.get('code')
   const childId = searchParams.get('childId')
-  const [isGuidelinesOpen, setIsGuidelinesOpen] = useState(false)
   const { data, isLoading, isError } = usePublicChildProfile(code, childId)
 
   if (!code || !childId) {
@@ -48,6 +57,53 @@ export function ChildProfilePage() {
         </div>
       ) : (
         <>
+          {(() => {
+            const unique = new Map<string, { reason: string; photoUrl: string | null; description: string | null }>()
+            for (const tx of data.child.transactions) {
+              if (tx.amount <= 0) continue
+              const meta = getRuleMeta(tx.metadata)
+              if (!meta?.isAchievement) continue
+              const key = meta.achievementKey ?? tx.reason.toLowerCase()
+              if (unique.has(key)) continue
+              unique.set(key, {
+                reason: tx.reason,
+                photoUrl: meta.rulePhotoUrl,
+                description: meta.ruleDescription,
+              })
+            }
+            const achievements = Array.from(unique.values())
+
+            if (!achievements.length) return null
+
+            return (
+              <div className="bg-white rounded-2xl p-5 shadow-sm space-y-3">
+                <p className="font-semibold text-gray-900">Ачівки</p>
+                <div className="space-y-2">
+                  {achievements.map((achievement) => (
+                    <div
+                      key={`${achievement.reason}-${achievement.photoUrl ?? 'no-photo'}`}
+                      className="flex items-start gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-violet-100 overflow-hidden flex items-center justify-center text-violet-700 flex-shrink-0">
+                        {achievement.photoUrl ? (
+                          <img src={achievement.photoUrl} alt={achievement.reason} className="w-full h-full object-cover" />
+                        ) : (
+                          <Coins className="w-4 h-4 text-yellow-500" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 break-words">{achievement.reason}</p>
+                        {achievement.description && (
+                          <p className="text-xs text-gray-500 mt-1 break-words">{achievement.description}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
+
           <div className="bg-white rounded-3xl p-6 shadow-sm text-center">
             <div className="w-24 h-24 rounded-full bg-violet-100 overflow-hidden flex items-center justify-center text-3xl font-bold text-violet-700 mx-auto">
               {data.child.photoUrl ? (
@@ -74,33 +130,6 @@ export function ChildProfilePage() {
             <p className="text-sm text-violet-100 mt-2">балів у таборі</p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => navigate(`/child/shop?code=${code}`)}
-            className="w-full bg-white rounded-2xl p-4 shadow-sm text-left"
-          >
-            <p className="font-semibold text-gray-900">🛍️ На що витратити бали</p>
-            <p className="text-sm text-gray-500 mt-1">Переглянути всі активні позиції магазину</p>
-          </button>
-
-          {data.camp.childGuidelines && (
-            <div className="bg-white rounded-2xl p-5 shadow-sm">
-              <button
-                type="button"
-                onClick={() => setIsGuidelinesOpen((prev) => !prev)}
-                className="w-full flex items-center justify-between gap-3 text-left"
-              >
-                <p className="font-semibold text-gray-900">Загальні положення табору</p>
-                <span className="text-sm text-violet-700 font-medium">
-                  {isGuidelinesOpen ? 'Згорнути' : 'Відкрити'}
-                </span>
-              </button>
-              {isGuidelinesOpen && (
-                <p className="text-sm text-gray-700 whitespace-pre-line mt-2">{data.camp.childGuidelines}</p>
-              )}
-            </div>
-          )}
-
           <div className="bg-white rounded-2xl p-5 shadow-sm space-y-3">
             <p className="font-semibold text-gray-900">Історія транзакцій</p>
             {data.child.transactions.length ? (
@@ -110,9 +139,27 @@ export function ChildProfilePage() {
                     key={tx.id}
                     className="flex items-start justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3"
                   >
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-900 break-words">{tx.reason}</p>
-                      <p className="text-xs text-gray-500 mt-1">{formatTxDate(tx.createdAt)}</p>
+                    <div className="flex items-start gap-3 min-w-0 flex-1">
+                      <div className="w-10 h-10 rounded-xl bg-violet-100 overflow-hidden flex items-center justify-center text-violet-700 flex-shrink-0">
+                        {getRuleMeta(tx.metadata)?.rulePhotoUrl ? (
+                          <img
+                            src={getRuleMeta(tx.metadata)!.rulePhotoUrl!}
+                            alt={tx.reason}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Coins className="w-4 h-4 text-yellow-500" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-900 break-words">{tx.reason}</p>
+                        {getRuleMeta(tx.metadata)?.ruleDescription && (
+                          <p className="text-xs text-gray-500 mt-1 break-words">
+                            {getRuleMeta(tx.metadata)!.ruleDescription}
+                          </p>
+                        )}
+                        <p className="text-xs text-gray-500 mt-1">{formatTxDate(tx.createdAt)}</p>
+                      </div>
                     </div>
                     <p
                       className={`text-sm font-bold whitespace-nowrap ${
