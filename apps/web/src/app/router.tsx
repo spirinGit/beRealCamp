@@ -24,10 +24,40 @@ import { AdminLayout } from '../shared/ui/AdminLayout'
 import { LeaderLayout } from '../shared/ui/LeaderLayout'
 import { WorkerLayout } from '../shared/ui/WorkerLayout'
 import { RequireAuth } from '../shared/ui/RequireAuth'
+import { useAuth } from '../features/auth/AuthContext'
+
+function roleHomePath(role: string | null | undefined) {
+  switch (role) {
+    case 'Administrator':
+      return '/admin/camps'
+    case 'Leader':
+      return '/leader/my-squads'
+    case 'Worker':
+      return '/worker/spend-coins'
+    default:
+      return '/child/search'
+  }
+}
+
+function RootRedirect() {
+  const { isAuthenticated, user } = useAuth()
+  if (isAuthenticated) {
+    return <Navigate to={roleHomePath(user?.role)} replace />
+  }
+  return <Navigate to="/login" replace />
+}
+
+function LoginRedirect() {
+  const { isAuthenticated, user } = useAuth()
+  if (isAuthenticated) {
+    return <Navigate to={roleHomePath(user?.role)} replace />
+  }
+  return <LoginPage />
+}
 
 export const appRouter = createBrowserRouter([
-  { path: '/', element: <Navigate to="/login" replace /> },
-  { path: '/login', element: <LoginPage /> },
+  { path: '/', element: <RootRedirect /> },
+  { path: '/login', element: <LoginRedirect /> },
 
   // Захищені admin роути з Layout
   {
