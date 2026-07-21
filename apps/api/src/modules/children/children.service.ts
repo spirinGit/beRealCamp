@@ -84,7 +84,8 @@ export async function deleteChild(app: FastifyInstance, id: string) {
 }
 
 export async function searchChildren(app: FastifyInstance, campId: string, q: string) {
-  const pattern = `%${q}%`
+  const normalizedQuery = q.trim().replace(/\s+/g, ' ')
+  const pattern = `%${normalizedQuery}%`
   return app.db
     .select({
       id: children.id,
@@ -99,7 +100,12 @@ export async function searchChildren(app: FastifyInstance, campId: string, q: st
     .where(
       and(
         eq(children.campId, campId),
-        or(ilike(children.firstName, pattern), ilike(children.lastName, pattern)),
+        or(
+          ilike(children.firstName, pattern),
+          ilike(children.lastName, pattern),
+          sql`concat_ws(' ', ${children.firstName}, ${children.lastName}) ILIKE ${pattern}`,
+          sql`concat_ws(' ', ${children.lastName}, ${children.firstName}) ILIKE ${pattern}`,
+        ),
       ),
     )
     .limit(50)

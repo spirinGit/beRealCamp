@@ -19,7 +19,7 @@ export function LoginPage() {
       // Редірект залежно від ролі
       const stored = localStorage.getItem('camp_user')
       const role = stored ? (JSON.parse(stored)?.role as string | null) : user?.role ?? null
-      navigate(roleHomePath(role))
+      navigate(roleHomePath(role), { replace: true })
     } catch {
       setError('Невірний email або пароль')
     } finally {
