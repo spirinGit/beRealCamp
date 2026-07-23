@@ -54,6 +54,13 @@ export interface PublicChildTransaction {
   createdAt: string
 }
 
+export interface PublicPromoCodeRedeemResult {
+  ok: true
+  code: string
+  pointsAwarded: number
+  balance: number
+}
+
 export interface PublicShopReward {
   id: string
   name: string
@@ -213,6 +220,22 @@ export function usePublicChildProfile(code?: string | null, childId?: string | n
       return data
     },
     enabled: !!code && !!childId,
+  })
+}
+
+export function useRedeemPublicPromoCode(code?: string | null, childId?: string | null) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (promoCode: string) => {
+      const { data } = await apiClient.post<PublicPromoCodeRedeemResult>(`/promo-codes/public/${code}/redeem`, {
+        childId,
+        promoCode,
+      })
+      return data
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['public-camp', code, 'child', childId] })
+    },
   })
 }
 

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useBulkMarkAttendance, useMarkAttendance, useSquadAttendance } from '../../features/attendance'
 import {
   type Child,
@@ -7,6 +8,7 @@ import {
   useChildren,
   useCreateChild,
   useCreateChildAvatarUploadUrl,
+  useDeleteChild,
   useUpdateChild,
 } from '../../features/children'
 import { type Squad, useCreateSquadAvatarUploadUrl, useSquads, useUpdateSquad } from '../../features/squads'
@@ -163,6 +165,7 @@ function AddChildSheet({ squad, onClose }: { squad: Squad; onClose: () => void }
                 <input
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
+                  capture="environment"
                   className="hidden"
                   onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)}
                 />
@@ -292,7 +295,7 @@ function LeaderEditSquadSheet({ squad, onClose }: { squad: Squad; onClose: () =>
             </div>
             <label className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 cursor-pointer active:bg-gray-50">
               {squad.photoUrl || avatarPreviewUrl ? 'Змінити фото' : 'Додати фото'}
-              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+              <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden"
                 onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)} />
             </label>
           </div>
@@ -338,7 +341,6 @@ function EarnSheet({
   const [customReason, setCustomReason] = useState('')
   const [customAmount, setCustomAmount] = useState('')
   const [comment, setComment] = useState('')
-  const [isAchievement, setIsAchievement] = useState(false)
   const [mode, setMode] = useState<'preset' | 'custom'>('preset')
   const [showAwardForm, setShowAwardForm] = useState(false)
   const [penaltySelected, setPenaltySelected] = useState<CoinRule | null>(null)
@@ -360,7 +362,7 @@ function EarnSheet({
   const spendAmount = penaltyMode === 'preset' ? Math.abs(penaltySelected?.points ?? 0) : Number(penaltyCustomAmount) || 0
   const canSpend = penaltyMode === 'preset' ? !!penaltySelected : !!penaltyCustomReason && spendAmount > 0
   const earnReason = mode === 'preset' ? selected?.label ?? '' : customReason
-  const shouldMarkAchievement = (mode === 'preset' && selected?.isAchievement === true) || isAchievement
+  const shouldMarkAchievement = mode === 'preset' && selected?.isAchievement === true
   const earnMetadata = {
     ...(selected?.photoUrl ? { rulePhotoUrl: selected.photoUrl } : {}),
     ...(selected?.description ? { ruleDescription: selected.description } : {}),
@@ -551,16 +553,6 @@ function EarnSheet({
             )}
 
             <input value={comment} onChange={(e) => setComment(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm" placeholder="Коментар (необов'язково)" />
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={shouldMarkAchievement}
-                onChange={(e) => setIsAchievement(e.target.checked)}
-                disabled={mode === 'preset' && selected?.isAchievement === true}
-                className="w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
-              />
-              Це ачівка
-            </label>
             <button onClick={handleSubmit} disabled={!canSubmit || isPending} className="w-full bg-violet-600 text-white font-semibold py-3 rounded-xl disabled:opacity-50">
               {isPending ? 'Збереження...' : `Нарахувати +${earnAmount || 0} ⭐`}
             </button>
@@ -604,13 +596,17 @@ function EarnSheet({
         <LeaderEditChildSheet
           child={child}
           onClose={() => setShowEditChild(false)}
+          onDeleted={() => {
+            setShowEditChild(false)
+            onClose()
+          }}
         />
       )}
     </BottomSheet>
   )
 }
 
-function LeaderEditChildSheet({ child, onClose }: { child: Child; onClose: () => void }) {
+function LeaderEditChildSheet({ child, onClose, onDeleted }: { child: Child; onClose: () => void; onDeleted: () => void }) {
   const [form, setForm] = useState({
     firstName: child.firstName,
     lastName: child.lastName,
@@ -624,6 +620,7 @@ function LeaderEditChildSheet({ child, onClose }: { child: Child; onClose: () =>
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const { mutateAsync: updateChild, isPending } = useUpdateChild(child.id)
+  const { mutate: deleteChild, isPending: isDeleting } = useDeleteChild()
   const { mutateAsync: createAvatarUploadUrl, isPending: isUploadingAvatar } = useCreateChildAvatarUploadUrl()
 
   function set(key: keyof typeof form, value: string) {
@@ -669,12 +666,23 @@ function LeaderEditChildSheet({ child, onClose }: { child: Child; onClose: () =>
     }
   }
 
+  function handleDeleteChild() {
+    const confirmed = window.confirm(`Видалити дитину ${child.firstName} ${child.lastName}?`)
+    if (!confirmed) return
+
+    deleteChild(child.id, {
+      onSuccess: () => {
+        onDeleted()
+      },
+    })
+  }
+
   const displayPhoto = avatarPreviewUrl ?? child.photoUrl
 
   return (
     <BottomSheet onClose={onClose} zIndex="z-40" className="p-6 space-y-4 max-h-[92dvh] overflow-y-auto">
       <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
-      <p className="text-lg font-bold text-gray-900">Редагувати дитину</p>
+      <p className="text-lg font-bold text-gray-900">Редагувати / Видалити дитину</p>
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Фото</label>
@@ -687,7 +695,7 @@ function LeaderEditChildSheet({ child, onClose }: { child: Child; onClose: () =>
             </div>
             <label className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 cursor-pointer active:bg-gray-50">
               {child.photoUrl || avatarPreviewUrl ? 'Змінити фото' : 'Додати фото'}
-              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+              <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden"
                 onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)} />
             </label>
           </div>
@@ -748,6 +756,14 @@ function LeaderEditChildSheet({ child, onClose }: { child: Child; onClose: () =>
           className="w-full bg-violet-600 text-white font-semibold py-3 rounded-xl text-base disabled:opacity-50 active:scale-95 transition-transform">
           {isPending || isUploadingAvatar ? 'Збереження...' : 'Зберегти зміни'}
         </button>
+        <button
+          type="button"
+          onClick={handleDeleteChild}
+          disabled={isDeleting}
+          className="w-full border border-red-200 text-red-600 font-semibold py-3 rounded-xl text-base disabled:opacity-50"
+        >
+          {isDeleting ? 'Видалення...' : 'Видалити дитину'}
+        </button>
       </form>
     </BottomSheet>
   )
@@ -758,12 +774,11 @@ function BulkEarnSheet({ children, rules, onClose }: { children: Child[]; rules:
   const [customReason, setCustomReason] = useState('')
   const [customAmount, setCustomAmount] = useState('')
   const [comment, setComment] = useState('')
-  const [isAchievement, setIsAchievement] = useState(false)
   const [mode, setMode] = useState<'preset' | 'custom'>('preset')
   const { mutate, isPending } = useBulkEarnCoins()
   const earnAmount = mode === 'preset' ? (selected?.points ?? 0) : Number(customAmount) || 0
   const canSubmit = mode === 'preset' ? !!selected : !!customReason && earnAmount > 0
-  const shouldMarkAchievement = (mode === 'preset' && selected?.isAchievement === true) || isAchievement
+  const shouldMarkAchievement = mode === 'preset' && selected?.isAchievement === true
 
   function handleSubmit() {
     if (!canSubmit) return
@@ -814,16 +829,6 @@ function BulkEarnSheet({ children, rules, onClose }: { children: Child[]; rules:
           </div>
         )}
         <input value={comment} onChange={(e) => setComment(e.target.value)} className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm" placeholder="Коментар (необов'язково)" />
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={shouldMarkAchievement}
-            onChange={(e) => setIsAchievement(e.target.checked)}
-            disabled={mode === 'preset' && selected?.isAchievement === true}
-            className="w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
-          />
-          Це ачівка
-        </label>
         <button onClick={handleSubmit} disabled={!canSubmit || isPending || children.length === 0} className="w-full bg-violet-600 text-white font-semibold py-3 rounded-xl disabled:opacity-50">
           {isPending ? 'Збереження...' : `Нарахувати вибраним +${earnAmount || 0} ⭐`}
         </button>
@@ -878,11 +883,24 @@ function BulkPenaltySheet({ children, rules, onClose }: { children: Child[]; rul
   )
 }
 
-function SquadChildren({ squad, rules, penalties }: { squad: Squad; rules: CoinRule[]; penalties: CoinRule[] }) {
+function SquadChildren({
+  squad,
+  rules,
+  penalties,
+  selectedChildId,
+  onOpenChild,
+  onCloseChild,
+}: {
+  squad: Squad
+  rules: CoinRule[]
+  penalties: CoinRule[]
+  selectedChildId: string | null
+  onOpenChild: (child: Child) => void
+  onCloseChild: () => void
+}) {
   const { data: children, isLoading } = useChildren(squad.id)
   const { data: attendanceOverview } = useSquadAttendance(squad.id)
   const { mutate: bulkMarkAttendance, isPending: isBulkMarkingAttendance } = useBulkMarkAttendance(squad.id)
-  const [earnFor, setEarnFor] = useState<Child | null>(null)
   const [showAddChild, setShowAddChild] = useState(false)
   const [bulkOpen, setBulkOpen] = useState(false)
   const [bulkPenaltyOpen, setBulkPenaltyOpen] = useState(false)
@@ -890,6 +908,7 @@ function SquadChildren({ squad, rules, penalties }: { squad: Squad; rules: CoinR
   const [selectedChildIds, setSelectedChildIds] = useState<string[]>([])
 
   const childList = children ?? []
+  const earnFor = selectedChildId ? childList.find((child) => child.id === selectedChildId) ?? null : null
   const selectedChildren = childList.filter((child) => selectedChildIds.includes(child.id))
   const canMarkToday = !!attendanceOverview?.today && attendanceOverview.days.includes(attendanceOverview.today)
   const eligibleSelectedChildIds =
@@ -997,7 +1016,7 @@ function SquadChildren({ squad, rules, penalties }: { squad: Squad; rules: CoinR
                     if (isBulkMode) {
                       toggleChildSelection(child.id)
                     } else {
-                      setEarnFor(child)
+                      onOpenChild(child)
                     }
                   }}
                   className="flex-1 flex items-center gap-3 text-left"
@@ -1011,7 +1030,7 @@ function SquadChildren({ squad, rules, penalties }: { squad: Squad; rules: CoinR
                   <div className="flex-1"><p className="font-medium text-gray-900 text-sm">{child.firstName} {child.lastName}</p></div>
                   {isBulkMode ? <span className={`text-lg ${isSelected ? 'text-violet-600' : 'text-gray-300'}`}>{isSelected ? '☑' : '☐'}</span> : <span className="text-gray-300 text-lg">›</span>}
                 </button>
-                {!isBulkMode && <button onClick={() => setEarnFor(child)} className="px-2 py-1 rounded-lg text-violet-600 text-sm font-semibold">⭐</button>}
+                {!isBulkMode && <button onClick={() => onOpenChild(child)} className="px-2 py-1 rounded-lg text-violet-600 text-sm font-semibold">⭐</button>}
               </div>
             )
           })}
@@ -1029,7 +1048,7 @@ function SquadChildren({ squad, rules, penalties }: { squad: Squad; rules: CoinR
           attendanceToday={attendanceOverview?.today ?? ''}
           attendanceRecords={attendanceOverview?.children.find((child) => child.id === earnFor.id)?.attendance ?? {}}
           joinedAt={attendanceOverview?.children.find((child) => child.id === earnFor.id)?.createdAt ?? earnFor.createdAt}
-          onClose={() => setEarnFor(null)}
+          onClose={onCloseChild}
         />
       )}
       {bulkOpen && <BulkEarnSheet children={selectedChildren} rules={rules} onClose={() => { setBulkOpen(false); clearSelectedChildren() }} />}
@@ -1042,10 +1061,41 @@ export function MySquadsPage() {
   const { data: squads, isLoading } = useSquads()
   const { data: rules = [] } = useCoinRules()
   const { data: penalties = [] } = usePenaltyRules()
-  const [openSquad, setOpenSquad] = useState<string | null>(null)
+  const [searchParams, setSearchParams] = useSearchParams()
   const [editingSquad, setEditingSquad] = useState<Squad | null>(null)
+  const openSquad = searchParams.get('squadId')
+  const openChildId = searchParams.get('childId')
 
   const squadList = squads ?? []
+
+  function toggleSquad(squadId: string) {
+    const nextParams = new URLSearchParams(searchParams)
+    const isOpen = openSquad === squadId
+
+    if (isOpen) {
+      nextParams.delete('squadId')
+      nextParams.delete('childId')
+      setSearchParams(nextParams, { replace: true })
+      return
+    }
+
+    nextParams.set('squadId', squadId)
+    nextParams.delete('childId')
+    setSearchParams(nextParams, { replace: Boolean(openSquad) })
+  }
+
+  function openChildSheet(squadId: string, child: Child) {
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.set('squadId', squadId)
+    nextParams.set('childId', child.id)
+    setSearchParams(nextParams, { replace: Boolean(openChildId) })
+  }
+
+  function closeChildSheet() {
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.delete('childId')
+    setSearchParams(nextParams, { replace: true })
+  }
 
   return (
     <div className="p-4">
@@ -1069,7 +1119,7 @@ export function MySquadsPage() {
               <div className="w-full bg-white rounded-2xl p-4 shadow-sm flex items-center gap-4 text-left">
                 <button
                   type="button"
-                  onClick={() => setOpenSquad(openSquad === squad.id ? null : squad.id)}
+                  onClick={() => toggleSquad(squad.id)}
                   className="flex items-center gap-4 text-left flex-1 min-w-0"
                 >
                 <div className="w-12 h-12 rounded-xl flex-shrink-0 overflow-hidden" style={{ backgroundColor: squad.color }}>
@@ -1089,7 +1139,16 @@ export function MySquadsPage() {
                   ⋮
                 </button>
               </div>
-              {openSquad === squad.id && <SquadChildren squad={squad} rules={rules} penalties={penalties} />}
+              {openSquad === squad.id && (
+                <SquadChildren
+                  squad={squad}
+                  rules={rules}
+                  penalties={penalties}
+                  selectedChildId={openChildId}
+                  onOpenChild={(child) => openChildSheet(squad.id, child)}
+                  onCloseChild={closeChildSheet}
+                />
+              )}
             </div>
           ))}
         </div>

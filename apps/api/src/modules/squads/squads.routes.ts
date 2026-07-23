@@ -23,12 +23,14 @@ const createBody = z.object({
   name: z.string().min(1),
   color: z.string().min(1),
   description: z.string().optional(),
+  schedule: z.string().optional(),
 })
 
 const updateBody = z.object({
   name: z.string().min(1).optional(),
   color: z.string().min(1).optional(),
   description: z.string().optional(),
+  schedule: z.string().optional(),
   photoUrl: z.string().url().optional(),
 })
 
@@ -83,8 +85,8 @@ export async function registerSquadsRoutes(app: FastifyInstance) {
       const allowed = await isLeaderOfSquad(app, id, request.user.userId)
       if (!allowed) return reply.code(403).send({ error: 'You can edit only your squads' })
 
-      const { name, color, description } = parsed.data
-      if (!name || color !== undefined || description !== undefined) {
+      const { name, color, description, schedule } = parsed.data
+      if (!name || color !== undefined || description !== undefined || schedule !== undefined) {
         return reply.code(403).send({ error: 'Leader can update only squad name' })
       }
     }

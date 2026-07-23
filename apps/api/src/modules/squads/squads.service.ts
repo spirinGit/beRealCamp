@@ -15,6 +15,7 @@ export async function listSquadsForLeader(app: FastifyInstance, leaderId: string
       name: squads.name,
       color: squads.color,
       description: squads.description,
+      schedule: squads.schedule,
       photoUrl: squads.photoUrl,
       createdAt: squads.createdAt,
     })
@@ -31,7 +32,7 @@ export async function getSquadById(app: FastifyInstance, id: string) {
 
 export async function createSquad(
   app: FastifyInstance,
-  data: { campId: string; name: string; color: string; description?: string },
+  data: { campId: string; name: string; color: string; description?: string; schedule?: string },
 ) {
   const [squad] = await app.db.insert(squads).values(data).returning()
   return squad
@@ -40,7 +41,7 @@ export async function createSquad(
 export async function updateSquad(
   app: FastifyInstance,
   id: string,
-  data: Partial<{ name: string; color: string; description: string; photoUrl: string }>,
+  data: Partial<{ name: string; color: string; description: string; schedule: string; photoUrl: string }>,
 ) {
   const [squad] = await app.db.update(squads).set(data).where(eq(squads.id, id)).returning()
   return squad ?? null

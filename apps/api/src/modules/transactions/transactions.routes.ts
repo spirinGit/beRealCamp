@@ -14,6 +14,7 @@ const earnBody = z.object({
   amount: z.number().int().positive(),
   reason: z.string().min(1),
   comment: z.string().optional(),
+  clientRequestId: z.string().min(1).max(128).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
@@ -23,6 +24,7 @@ const spendBody = z.object({
   amount: z.number().int().positive(),
   reason: z.string().min(1),
   comment: z.string().optional(),
+  clientRequestId: z.string().min(1).max(128).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
 })
 

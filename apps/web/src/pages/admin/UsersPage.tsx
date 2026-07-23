@@ -1,4 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   ROLE_COLORS,
   ROLE_LABELS,
@@ -256,6 +257,7 @@ function EditUserSheet({ user, onClose }: { user: User; onClose: () => void }) {
               <input
                 type="file"
                 accept="image/jpeg,image/png,image/webp"
+                capture="environment"
                 className="hidden"
                 onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)}
               />
@@ -337,11 +339,28 @@ function EditUserSheet({ user, onClose }: { user: User; onClose: () => void }) {
 
 export function UsersPage() {
   const { data: users, isLoading } = useUsers()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [showCreate, setShowCreate] = useState(false)
-  const [editingUser, setEditingUser] = useState<User | null>(null)
+  const editingUserId = searchParams.get('userId')
+  const editingUser = useMemo(
+    () => (editingUserId ? users?.find((user) => user.id === editingUserId) ?? null : null),
+    [editingUserId, users],
+  )
 
   const active = users?.filter((u) => u.isActive) ?? []
   const inactive = users?.filter((u) => !u.isActive) ?? []
+
+  function openEditUser(user: User) {
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.set('userId', user.id)
+    setSearchParams(nextParams, { replace: Boolean(editingUserId) })
+  }
+
+  function closeEditUser() {
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.delete('userId')
+    setSearchParams(nextParams, { replace: true })
+  }
 
   return (
     <div className="p-4">
@@ -373,13 +392,13 @@ export function UsersPage() {
       ) : (
         <div className="space-y-3">
           {active.map((u) => (
-            <UserCard key={u.id} user={u} onEdit={setEditingUser} />
+            <UserCard key={u.id} user={u} onEdit={openEditUser} />
           ))}
           {inactive.length > 0 && (
             <>
               <p className="text-xs text-gray-400 uppercase tracking-wider mt-4 mb-2">Деактивовані</p>
               {inactive.map((u) => (
-                <UserCard key={u.id} user={u} onEdit={setEditingUser} />
+                <UserCard key={u.id} user={u} onEdit={openEditUser} />
               ))}
             </>
           )}
@@ -387,7 +406,7 @@ export function UsersPage() {
       )}
 
       {showCreate && <CreateUserSheet onClose={() => setShowCreate(false)} />}
-      {editingUser && <EditUserSheet user={editingUser} onClose={() => setEditingUser(null)} />}
+      {editingUser && <EditUserSheet user={editingUser} onClose={closeEditUser} />}
     </div>
   )
 }

@@ -5,6 +5,7 @@ import { apiClient } from '../../shared/api/client'
 interface Stats {
   childrenCount: number
   squadsCount: number
+  presentTodayCount: number
   totalEarned: number
   totalSpent: number
 }
@@ -40,7 +41,7 @@ export function DashboardPage() {
 
       {isLoading ? (
         <div className="grid grid-cols-2 gap-3">
-          {[...Array(4)].map((_, i) => (
+          {[...Array(5)].map((_, i) => (
             <div key={i} className="bg-white rounded-2xl p-4 h-24 animate-pulse" />
           ))}
         </div>
@@ -48,6 +49,7 @@ export function DashboardPage() {
         <div className="grid grid-cols-2 gap-3">
           <StatCard icon="👧" label="Дітей" value={stats?.childrenCount ?? 0} />
           <StatCard icon="🏕️" label="Загонів" value={stats?.squadsCount ?? 0} />
+          <StatCard icon="✅" label="Присутні сьогодні" value={stats?.presentTodayCount ?? 0} />
           <StatCard icon="⭐" label="Нараховано" value={`${stats?.totalEarned ?? 0}`} />
           <StatCard icon="🛍️" label="Списано" value={`${stats?.totalSpent ?? 0}`} />
         </div>

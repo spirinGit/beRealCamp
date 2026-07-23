@@ -337,27 +337,36 @@ export async function getPublicChildProfile(
       photoUrl: coinRules.photoUrl,
     })
     .from(coinRules)
-    .where(and(eq(coinRules.campId, camp.id), eq(coinRules.isAchievement, true), eq(coinRules.isActive, true)))
+    .where(and(eq(coinRules.campId, camp.id), eq(coinRules.isAchievement, true)))
 
   const achievementRuleByLabel = new Map(achievementRules.map((rule) => [rule.label.trim().toLowerCase(), rule]))
+  const achievementRuleById = new Map(achievementRules.map((rule) => [rule.id, rule]))
 
   const transactionsWithAchievementMeta = transactions.map((tx) => {
     const metadata = (tx.metadata && typeof tx.metadata === 'object' ? tx.metadata : null) as Record<string, unknown> | null
     const hasAchievementFlag = metadata?.isAchievement === true
-    if (hasAchievementFlag || tx.amount <= 0) return tx
+    if (tx.amount <= 0) return tx
 
-    const matchedRule = achievementRuleByLabel.get(tx.reason.trim().toLowerCase())
-    if (!matchedRule) return tx
+    const metadataAchievementKey = typeof metadata?.achievementKey === 'string' ? metadata.achievementKey : null
+    const ruleIdFromMetadata = metadataAchievementKey?.startsWith('rule:') ? metadataAchievementKey.slice(5) : null
+    const matchedRuleById = ruleIdFromMetadata ? achievementRuleById.get(ruleIdFromMetadata) : undefined
+    const matchedRuleByLabel = achievementRuleByLabel.get(tx.reason.trim().toLowerCase())
+    const matchedRule = matchedRuleById ?? matchedRuleByLabel
+
+    if (!hasAchievementFlag && !matchedRule) return tx
 
     return {
       ...tx,
       metadata: {
         ...(metadata ?? {}),
-        isAchievement: true,
-        achievementKey: typeof metadata?.achievementKey === 'string' ? metadata.achievementKey : `rule:${matchedRule.id}`,
-        rulePhotoUrl: typeof metadata?.rulePhotoUrl === 'string' ? metadata.rulePhotoUrl : matchedRule.photoUrl,
+        isAchievement: hasAchievementFlag || !!matchedRule,
+        achievementKey: metadataAchievementKey ?? (matchedRule ? `rule:${matchedRule.id}` : tx.reason.trim().toLowerCase()),
+        // Prefer live rule media so profile shelf reflects updates from admin rules.
+        rulePhotoUrl: matchedRule ? matchedRule.photoUrl : (typeof metadata?.rulePhotoUrl === 'string' ? metadata.rulePhotoUrl : null),
         ruleDescription:
-          typeof metadata?.ruleDescription === 'string' ? metadata.ruleDescription : matchedRule.description,
+          matchedRule
+            ? matchedRule.description
+            : (typeof metadata?.ruleDescription === 'string' ? metadata.ruleDescription : null),
       },
     }
   })
