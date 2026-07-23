@@ -26,6 +26,18 @@ const sections = [
     description: 'Створення подій, перевірка і історія',
   },
   {
+    to: '/admin/child-history',
+    icon: '📋',
+    title: 'Історія дітей',
+    description: 'Транзакції, пошук і перегляд балансу',
+  },
+  {
+    to: '/admin/promo-codes',
+    icon: '🎟️',
+    title: 'Коди',
+    description: 'Бонус-коди зі статусами активації',
+  },
+  {
     to: '/admin/public-link',
     icon: '🔗',
     title: 'Посилання для дітей',

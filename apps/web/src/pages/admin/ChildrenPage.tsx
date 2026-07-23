@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useSquadAttendance } from '../../features/attendance'
 import {
   type Child,
@@ -114,13 +115,12 @@ function BulkEarnSheet({
   const [customReason, setCustomReason] = useState('')
   const [customAmount, setCustomAmount] = useState('')
   const [comment, setComment] = useState('')
-  const [isAchievement, setIsAchievement] = useState(false)
   const { mutate, isPending } = useBulkEarnCoins()
 
   const selectedRule = rules.find((r) => r.id === selectedRuleId) ?? null
   const earnAmount = mode === 'preset' ? (selectedRule?.points ?? 0) : Number(customAmount) || 0
   const reason = mode === 'preset' ? selectedRule?.label ?? '' : customReason.trim()
-  const shouldMarkAchievement = (mode === 'preset' && selectedRule?.isAchievement === true) || isAchievement
+  const shouldMarkAchievement = mode === 'preset' && selectedRule?.isAchievement === true
   const achievementKey = mode === 'preset' ? (selectedRule ? `rule:${selectedRule.id}` : null) : reason.toLowerCase()
   const earnMetadata = {
     ...(selectedRule?.photoUrl ? { rulePhotoUrl: selectedRule.photoUrl } : {}),
@@ -212,16 +212,6 @@ function BulkEarnSheet({
           className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
           placeholder="Коментар (необов'язково)"
         />
-        <label className="flex items-center gap-2 text-sm text-gray-700">
-          <input
-            type="checkbox"
-            checked={shouldMarkAchievement}
-            onChange={(e) => setIsAchievement(e.target.checked)}
-            disabled={mode === 'preset' && selectedRule?.isAchievement === true}
-            className="w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
-          />
-          Це ачівка
-        </label>
         <button
           onClick={handleSubmit}
           disabled={!canSubmit || isPending}
@@ -261,7 +251,6 @@ function ChildDetailSheet({
   const [customReason, setCustomReason] = useState('')
   const [customAmount, setCustomAmount] = useState('')
   const [comment, setComment] = useState('')
-  const [isAchievement, setIsAchievement] = useState(false)
   const [selectedSquadId, setSelectedSquadId] = useState(child.squadId)
   const [showManageSheet, setShowManageSheet] = useState(false)
   const [showEditSheet, setShowEditSheet] = useState(false)
@@ -281,7 +270,7 @@ function ChildDetailSheet({
   const selectedRule = rules.find((r) => r.id === selectedRuleId) ?? null
   const earnAmount = mode === 'preset' ? (selectedRule?.points ?? 0) : Number(customAmount) || 0
   const reason = mode === 'preset' ? selectedRule?.label ?? '' : customReason.trim()
-  const shouldMarkAchievement = (mode === 'preset' && selectedRule?.isAchievement === true) || isAchievement
+  const shouldMarkAchievement = mode === 'preset' && selectedRule?.isAchievement === true
   const achievementKey = mode === 'preset' ? (selectedRule ? `rule:${selectedRule.id}` : null) : reason.toLowerCase()
   const earnMetadata = {
     ...(selectedRule?.photoUrl ? { rulePhotoUrl: selectedRule.photoUrl } : {}),
@@ -317,7 +306,8 @@ function ChildDetailSheet({
           setCustomReason('')
           setCustomAmount('')
           setComment('')
-          setIsAchievement(false)
+          setShowEarnSheet(false)
+          onClose()
         },
       },
     )
@@ -363,6 +353,7 @@ function ChildDetailSheet({
           setCustomPenaltyAmount('')
           setPenaltyComment('')
           setShowPenaltySheet(false)
+          onClose()
         },
       },
     )
@@ -460,7 +451,7 @@ function ChildDetailSheet({
             onClick={() => setShowEditSheet(true)}
             className="w-full px-4 py-3 rounded-xl bg-violet-600 text-white text-sm font-semibold"
           >
-            ✒️  Редагувати дитину
+            ✒️  Редагувати / Видалити дитину
           </button>
           <button
             onClick={() => setShowManageSheet(true)}
@@ -523,7 +514,8 @@ function ChildDetailSheet({
         <EditChildSheet
           child={child}
           onClose={() => setShowEditSheet(false)}
-          onUpdated={(updated) => { onChildUpdated(updated); setShowEditSheet(false) }}
+          onUpdated={(updated) => { onChildUpdated(updated); setShowEditSheet(false); onClose() }}
+          onDeleted={() => { setShowEditSheet(false); onChildDeleted() }}
         />
       )}
 
@@ -596,16 +588,6 @@ function ChildDetailSheet({
               className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
               placeholder="Коментар (необов'язково)"
             />
-            <label className="flex items-center gap-2 text-sm text-gray-700">
-              <input
-                type="checkbox"
-                checked={shouldMarkAchievement}
-                onChange={(e) => setIsAchievement(e.target.checked)}
-                disabled={mode === 'preset' && selectedRule?.isAchievement === true}
-                className="w-4 h-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
-              />
-              Це ачівка
-            </label>
             <button
               onClick={handleEarn}
               disabled={!canSubmit || isPending}
@@ -702,10 +684,12 @@ function EditChildSheet({
   child,
   onClose,
   onUpdated,
+  onDeleted,
 }: {
   child: Child
   onClose: () => void
   onUpdated: (child: Child) => void
+  onDeleted: () => void
 }) {
   const [form, setForm] = useState({
     firstName: child.firstName,
@@ -720,6 +704,7 @@ function EditChildSheet({
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
   const { mutateAsync: updateChild, isPending } = useUpdateChild(child.id)
+  const { mutate: deleteChild, isPending: isDeleting } = useDeleteChild()
   const { mutateAsync: createAvatarUploadUrl, isPending: isUploadingAvatar } = useCreateChildAvatarUploadUrl()
 
   function set(key: keyof typeof form, value: string) {
@@ -765,12 +750,23 @@ function EditChildSheet({
     }
   }
 
+  function handleDeleteChild() {
+    const confirmed = window.confirm(`Видалити дитину ${child.firstName} ${child.lastName}?`)
+    if (!confirmed) return
+
+    deleteChild(child.id, {
+      onSuccess: () => {
+        onDeleted()
+      },
+    })
+  }
+
   const displayPhoto = avatarPreviewUrl ?? child.photoUrl
 
   return (
     <BottomSheet onClose={onClose} zIndex="z-30" className="p-6 space-y-4 max-h-[92dvh] overflow-y-auto">
       <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
-      <p className="text-lg font-bold text-gray-900">Редагувати дитину</p>
+      <p className="text-lg font-bold text-gray-900">Редагувати / Видалити дитину</p>
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">Фото</label>
@@ -783,7 +779,7 @@ function EditChildSheet({
             </div>
             <label className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 cursor-pointer active:bg-gray-50">
               {child.photoUrl || avatarPreviewUrl ? 'Змінити фото' : 'Додати фото'}
-              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+              <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden"
                 onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)} />
             </label>
           </div>
@@ -843,6 +839,14 @@ function EditChildSheet({
         <button type="submit" disabled={isPending || isUploadingAvatar}
           className="w-full bg-violet-600 text-white font-semibold py-3 rounded-xl text-base disabled:opacity-50 active:scale-95 transition-transform">
           {isPending || isUploadingAvatar ? 'Збереження...' : 'Зберегти зміни'}
+        </button>
+        <button
+          type="button"
+          onClick={handleDeleteChild}
+          disabled={isDeleting}
+          className="w-full border border-red-200 text-red-600 font-semibold py-3 rounded-xl text-base disabled:opacity-50"
+        >
+          {isDeleting ? 'Видалення...' : 'Видалити дитину'}
         </button>
       </form>
     </BottomSheet>
@@ -953,6 +957,7 @@ function CreateChildSheet({
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
+                    capture="environment"
                     className="hidden"
                     onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)}
                   />
@@ -1049,18 +1054,39 @@ export function ChildrenPage() {
   const { data: children, isLoading } = useChildren()
   const { data: squads } = useSquads()
   const { data: rules = [] } = useCoinRules()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [showCreate, setShowCreate] = useState(false)
   const [filterSquad, setFilterSquad] = useState<string>('')
-  const [selectedChild, setSelectedChild] = useState<Child | null>(null)
+  const [selectedChildOverride, setSelectedChildOverride] = useState<Child | null>(null)
   const [isBulkMode, setIsBulkMode] = useState(false)
   const [selectedChildIds, setSelectedChildIds] = useState<string[]>([])
   const [showBulkEarn, setShowBulkEarn] = useState(false)
+  const selectedChildId = searchParams.get('childId')
 
   const filtered = filterSquad ? children?.filter((c) => c.squadId === filterSquad) : children
   const selectedChildren = useMemo(
     () => (filtered ?? []).filter((child) => selectedChildIds.includes(child.id)),
     [filtered, selectedChildIds],
   )
+  const selectedChild = useMemo(() => {
+    if (!selectedChildId) return null
+    if (selectedChildOverride?.id === selectedChildId) return selectedChildOverride
+    return children?.find((child) => child.id === selectedChildId) ?? null
+  }, [children, selectedChildId, selectedChildOverride])
+
+  function openChildDetails(child: Child) {
+    setSelectedChildOverride(null)
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.set('childId', child.id)
+    setSearchParams(nextParams, { replace: Boolean(selectedChildId) })
+  }
+
+  function closeChildDetails() {
+    setSelectedChildOverride(null)
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.delete('childId')
+    setSearchParams(nextParams, { replace: true })
+  }
 
   function toggleChildSelection(child: Child) {
     setSelectedChildIds((prev) =>
@@ -1170,7 +1196,7 @@ export function ChildrenPage() {
                   toggleChildSelection(value)
                   return
                 }
-                setSelectedChild(value)
+                openChildDetails(value)
               }}
             />
           ))}
@@ -1194,9 +1220,9 @@ export function ChildrenPage() {
           child={selectedChild}
           squad={squads?.find((s) => s.id === selectedChild.squadId)}
           squads={squads ?? []}
-          onClose={() => setSelectedChild(null)}
-          onChildUpdated={setSelectedChild}
-          onChildDeleted={() => setSelectedChild(null)}
+          onClose={closeChildDetails}
+          onChildUpdated={setSelectedChildOverride}
+          onChildDeleted={closeChildDetails}
         />
       )}
       {showBulkEarn && (

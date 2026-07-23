@@ -1,0 +1,1 @@
+ALTER TABLE "squads" ADD COLUMN "schedule" text;

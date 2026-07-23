@@ -1,6 +1,20 @@
 import { and, desc, eq, sql } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
-import { children, coinTransactions, squadLeaders } from '../../db/schema/index.js'
+import { children, coinTransactions, squadLeaders, users } from '../../db/schema/index.js'
+
+function isUniqueViolation(error: unknown): error is { code: string } {
+  return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === '23505'
+}
+
+async function findTransactionByClientRequestId(db: any, clientRequestId: string) {
+  const [existing] = await db
+    .select()
+    .from(coinTransactions)
+    .where(eq(coinTransactions.clientRequestId, clientRequestId))
+    .limit(1)
+
+  return existing ?? null
+}
 
 export async function getChildBalance(app: FastifyInstance, childId: string): Promise<number> {
   const [result] = await app.db
@@ -40,8 +54,22 @@ export async function listTransactions(
   if (childId) conditions.push(eq(coinTransactions.childId, childId))
 
   return app.db
-    .select()
+    .select({
+      id: coinTransactions.id,
+      campId: coinTransactions.campId,
+      childId: coinTransactions.childId,
+      actorUserId: coinTransactions.actorUserId,
+      actorFirstName: users.firstName,
+      actorLastName: users.lastName,
+      type: coinTransactions.type,
+      amount: coinTransactions.amount,
+      reason: coinTransactions.reason,
+      comment: coinTransactions.comment,
+      metadata: coinTransactions.metadata,
+      createdAt: coinTransactions.createdAt,
+    })
     .from(coinTransactions)
+    .leftJoin(users, eq(users.id, coinTransactions.actorUserId))
     .where(and(...conditions))
     .orderBy(desc(coinTransactions.createdAt))
     .limit(200)
@@ -56,23 +84,38 @@ export async function earnTalents(
     amount: number
     reason: string
     comment?: string
+    clientRequestId?: string
     metadata?: Record<string, unknown>
   },
 ) {
-  const [tx] = await app.db
-    .insert(coinTransactions)
-    .values({
-      campId: data.campId,
-      childId: data.childId,
-      actorUserId: data.actorUserId,
-      type: 'earn',
-      amount: Math.abs(data.amount), // завжди додатні
-      reason: data.reason,
-      comment: data.comment ?? null,
-      metadata: data.metadata ?? {},
-    })
-    .returning()
-  return tx
+  if (data.clientRequestId) {
+    const existing = await findTransactionByClientRequestId(app.db, data.clientRequestId)
+    if (existing) return existing
+  }
+
+  try {
+    const [tx] = await app.db
+      .insert(coinTransactions)
+      .values({
+        campId: data.campId,
+        childId: data.childId,
+        actorUserId: data.actorUserId,
+        type: 'earn',
+        amount: Math.abs(data.amount),
+        reason: data.reason,
+        comment: data.comment ?? null,
+        clientRequestId: data.clientRequestId ?? null,
+        metadata: data.metadata ?? {},
+      })
+      .returning()
+    return tx
+  } catch (error) {
+    if (data.clientRequestId && isUniqueViolation(error)) {
+      const existing = await findTransactionByClientRequestId(app.db, data.clientRequestId)
+      if (existing) return existing
+    }
+    throw error
+  }
 }
 
 export async function spendTalents(
@@ -84,28 +127,55 @@ export async function spendTalents(
     amount: number
     reason: string
     comment?: string
+    clientRequestId?: string
     metadata?: Record<string, unknown>
   },
 ): Promise<{ ok: true; tx: typeof coinTransactions.$inferSelect } | { ok: false; error: string }> {
-  const balance = await getChildBalance(app, data.childId)
+  return app.db.transaction(async (tx) => {
+    const lockResult = await tx.execute(sql`select id from ${children} where ${children.id} = ${data.childId} for update`)
+    if (lockResult.length === 0) {
+      return { ok: false as const, error: 'Child not found' }
+    }
 
-  if (balance < data.amount) {
-    return { ok: false, error: 'Insufficient balance' }
-  }
+    if (data.clientRequestId) {
+      const existing = await findTransactionByClientRequestId(tx, data.clientRequestId)
+      if (existing) return { ok: true as const, tx: existing }
+    }
 
-  const [tx] = await app.db
-    .insert(coinTransactions)
-    .values({
-      campId: data.campId,
-      childId: data.childId,
-      actorUserId: data.actorUserId,
-      type: 'spend',
-      amount: -Math.abs(data.amount), // завжди відемне
-      reason: data.reason,
-      comment: data.comment ?? null,
-      metadata: data.metadata ?? {},
-    })
-    .returning()
-  return { ok: true, tx }
+    const [balanceRow] = await tx
+      .select({ balance: sql<number>`coalesce(sum(${coinTransactions.amount}), 0)` })
+      .from(coinTransactions)
+      .where(eq(coinTransactions.childId, data.childId))
+
+    const balance = Number(balanceRow?.balance ?? 0)
+    if (balance < data.amount) {
+      return { ok: false as const, error: 'Insufficient balance' }
+    }
+
+    try {
+      const [createdTx] = await tx
+        .insert(coinTransactions)
+        .values({
+          campId: data.campId,
+          childId: data.childId,
+          actorUserId: data.actorUserId,
+          type: 'spend',
+          amount: -Math.abs(data.amount),
+          reason: data.reason,
+          comment: data.comment ?? null,
+          clientRequestId: data.clientRequestId ?? null,
+          metadata: data.metadata ?? {},
+        })
+        .returning()
+
+      return { ok: true as const, tx: createdTx }
+    } catch (error) {
+      if (data.clientRequestId && isUniqueViolation(error)) {
+        const existing = await findTransactionByClientRequestId(tx, data.clientRequestId)
+        if (existing) return { ok: true as const, tx: existing }
+      }
+      throw error
+    }
+  })
 }
 

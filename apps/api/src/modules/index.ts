@@ -6,6 +6,7 @@ import { registerCampsRoutes } from './camps/camps.routes.js'
 import { registerChildrenRoutes } from './children/children.routes.js'
 import { registerCoinRulesRoutes } from './coin-rules/coin-rules.routes.js'
 import { registerEventsRoutes } from './events/events.routes.js'
+import { registerPromoCodesRoutes } from './promo-codes/promo-codes.routes.js'
 import { registerRewardsRoutes } from './rewards/rewards.routes.js'
 import { registerSquadsRoutes } from './squads/squads.routes.js'
 import { registerStatsRoutes } from './stats/stats.routes.js'
@@ -21,6 +22,7 @@ export async function registerModules(app: FastifyInstance) {
   await app.register(registerChildrenRoutes, { prefix: '/children' })
   await app.register(registerCoinRulesRoutes, { prefix: '/coin-rules' })
   await app.register(registerEventsRoutes, { prefix: '/events' })
+  await app.register(registerPromoCodesRoutes, { prefix: '/promo-codes' })
   await app.register(registerTransactionsRoutes, { prefix: '/transactions' })
   await app.register(registerRewardsRoutes, { prefix: '/rewards' })
   await app.register(registerStatsRoutes, { prefix: '/stats' })

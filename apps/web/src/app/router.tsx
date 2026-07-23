@@ -12,6 +12,7 @@ import { SquadsPage } from '../pages/admin/SquadsPage'
 import { UsersPage } from '../pages/admin/UsersPage'
 import { PenaltyRulesPage } from '../pages/admin/PenaltyRulesPage'
 import { PublicCampLinkPage } from '../pages/admin/PublicCampLinkPage'
+import { PromoCodesPage } from '../pages/admin/PromoCodesPage'
 import { ChildProfilePage } from '../pages/child/ChildProfilePage'
 import { SearchPage } from '../pages/child/SearchPage'
 import { ShopPage } from '../pages/child/ShopPage'
@@ -19,6 +20,7 @@ import { ChildHistoryPage } from '../pages/leader/ChildHistoryPage'
 import { EvaluatePage } from '../pages/leader/EvaluatePage'
 import { LeaderEventsPage } from '../pages/leader/EventsPage'
 import { MySquadsPage } from '../pages/leader/MySquadsPage'
+import { LeaderSchedulePage } from '../pages/leader/SchedulePage'
 import { SpendCoinsPage } from '../pages/worker/SpendCoinsPage'
 import { AdminLayout } from '../shared/ui/AdminLayout'
 import { LeaderLayout } from '../shared/ui/LeaderLayout'
@@ -74,6 +76,8 @@ export const appRouter = createBrowserRouter([
           { path: '/admin/rules', element: <RulesPage /> },
           { path: '/admin/penalty-rules', element: <PenaltyRulesPage /> },
           { path: '/admin/events', element: <AdminEventsPage /> },
+          { path: '/admin/child-history', element: <ChildHistoryPage /> },
+          { path: '/admin/promo-codes', element: <PromoCodesPage /> },
           { path: '/admin/rewards', element: <RewardsPage /> },
           { path: '/admin/audit', element: <AuditPage /> },
           { path: '/admin/more', element: <MorePage /> },
@@ -84,6 +88,7 @@ export const appRouter = createBrowserRouter([
         element: <LeaderLayout />,
         children: [
           { path: '/leader/my-squads', element: <MySquadsPage /> },
+          { path: '/leader/schedule', element: <LeaderSchedulePage /> },
           { path: '/leader/events', element: <LeaderEventsPage /> },
           { path: '/leader/evaluate', element: <EvaluatePage /> },
           { path: '/leader/child-history', element: <ChildHistoryPage /> },

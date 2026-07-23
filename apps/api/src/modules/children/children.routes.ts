@@ -194,9 +194,18 @@ export async function registerChildrenRoutes(app: FastifyInstance) {
     return child
   })
 
-  // DELETE /children/:id  — видалити дитину (Admin only)
-  app.delete('/:id', { preHandler: [requireAdmin] }, async (request, reply) => {
+  // DELETE /children/:id  — видалити дитину (Admin або Leader зі свого загону)
+  app.delete('/:id', { preHandler: [requireAdminOrLeader] }, async (request, reply) => {
     const { id } = request.params as { id: string }
+
+    if (request.user.role === 'Leader') {
+      const existing = await getChildById(app, id)
+      if (!existing) return reply.code(404).send({ error: 'Child not found' })
+
+      const allowed = await isLeaderOfSquad(app, request.user.userId, existing.squadId)
+      if (!allowed) return reply.code(403).send({ error: 'You can only delete children in your squads' })
+    }
+
     const child = await deleteChild(app, id)
     if (!child) return reply.code(404).send({ error: 'Child not found' })
     return { message: 'Child deleted' }

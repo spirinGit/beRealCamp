@@ -1,4 +1,6 @@
-﻿import { useState } from 'react'
+﻿import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { useSquadAttendance } from '../../features/attendance'
 import { useChildren } from '../../features/children'
 import {
   type Squad,
@@ -24,9 +26,24 @@ const COLORS = [
   { value: '#ec4899' }, { value: '#14b8a6' },
 ]
 
+function SquadAttendanceStats({ squadId }: { squadId: string }) {
+  const { data: attendanceOverview } = useSquadAttendance(squadId)
+
+  if (!attendanceOverview) {
+    return <p className="text-xs text-gray-300 mt-0.5">Дані відвідуваності завантажуються...</p>
+  }
+
+  return (
+    <p className="text-xs text-gray-500 mt-0.5">
+      Дітей: {attendanceOverview.totals.totalChildren} · Присутні: {attendanceOverview.totals.presentToday}/{attendanceOverview.totals.applicableToday}
+    </p>
+  )
+}
+
 // --- Squad Detail Sheet ---
 function SquadDetailSheet({ squad, onClose }: { squad: Squad; onClose: () => void }) {
   const { data: leaders } = useSquadLeaders(squad.id)
+  const { data: attendanceOverview } = useSquadAttendance(squad.id)
   const { data: children, isLoading: isChildrenLoading } = useChildren(squad.id)
   const { data: users } = useUsers()
   const { mutate: assign, isPending: assigning } = useAssignLeader(squad.id)
@@ -45,6 +62,23 @@ function SquadDetailSheet({ squad, onClose }: { squad: Squad; onClose: () => voi
           <div>
             <h2 className="text-xl font-bold text-gray-900">{squad.name}</h2>
             {squad.description && <p className="text-sm text-gray-400">{squad.description}</p>}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-xl bg-gray-50 px-3 py-2">
+            <p className="text-xs text-gray-400">Всього дітей</p>
+            <p className="text-lg font-bold text-gray-900">
+              {attendanceOverview?.totals.totalChildren ?? children?.length ?? 0}
+            </p>
+          </div>
+          <div className="rounded-xl bg-gray-50 px-3 py-2">
+            <p className="text-xs text-gray-400">Присутні сьогодні</p>
+            <p className="text-lg font-bold text-green-600">
+              {attendanceOverview
+                ? `${attendanceOverview.totals.presentToday}/${attendanceOverview.totals.applicableToday}`
+                : '—'}
+            </p>
           </div>
         </div>
 
@@ -137,11 +171,20 @@ function CreateSquadSheet({ onClose }: { onClose: () => void }) {
   const [name, setName] = useState('')
   const [color, setColor] = useState(COLORS[0].value)
   const [description, setDescription] = useState('')
+  const [schedule, setSchedule] = useState('')
   const { mutate, isPending, error } = useCreateSquad()
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    mutate({ name, color, description: description || undefined }, { onSuccess: onClose })
+    mutate(
+      {
+        name,
+        color,
+        description: description || undefined,
+        schedule: schedule.trim() || undefined,
+      },
+      { onSuccess: onClose },
+    )
   }
 
   return (
@@ -171,6 +214,15 @@ function CreateSquadSheet({ onClose }: { onClose: () => void }) {
               className="w-full px-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
               placeholder="Необов'язково" />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Розклад</label>
+            <textarea
+              value={schedule}
+              onChange={(e) => setSchedule(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 text-base min-h-28 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              placeholder="Текст розкладу для лідерів"
+            />
+          </div>
           {error && <p className="text-red-500 text-sm">Помилка створення</p>}
           <button type="submit" disabled={isPending}
             className="w-full bg-violet-600 text-white font-semibold py-3 rounded-xl text-base disabled:opacity-50 active:scale-95 transition-transform">
@@ -186,6 +238,7 @@ function EditSquadSheet({ squad, onClose }: { squad: Squad; onClose: () => void 
   const [name, setName] = useState(squad.name)
   const [color, setColor] = useState(squad.color)
   const [description, setDescription] = useState(squad.description ?? '')
+  const [schedule, setSchedule] = useState(squad.schedule ?? '')
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -211,7 +264,13 @@ function EditSquadSheet({ squad, onClose }: { squad: Squad; onClose: () => void 
         await uploadSquadAvatarFile(target.uploadUrl, avatarFile)
         photoUrl = target.photoUrl
       }
-      await updateSquad({ name: name.trim(), color, description: description.trim() || undefined, ...(photoUrl ? { photoUrl } : {}) })
+      await updateSquad({
+        name: name.trim(),
+        color,
+        description: description.trim() || undefined,
+        schedule: schedule.trim() || undefined,
+        ...(photoUrl ? { photoUrl } : {}),
+      })
       onClose()
     } catch {
       setSubmitError('Помилка збереження')
@@ -233,7 +292,7 @@ function EditSquadSheet({ squad, onClose }: { squad: Squad; onClose: () => void 
             </div>
             <label className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 cursor-pointer active:bg-gray-50">
               {squad.photoUrl || avatarPreviewUrl ? 'Змінити фото' : 'Додати фото'}
-              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
+              <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden"
                 onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)} />
             </label>
           </div>
@@ -260,6 +319,15 @@ function EditSquadSheet({ squad, onClose }: { squad: Squad; onClose: () => void 
             className="w-full px-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
             placeholder="Необов'язково" />
         </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Розклад</label>
+          <textarea
+            value={schedule}
+            onChange={(e) => setSchedule(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border border-gray-200 text-base min-h-28 focus:outline-none focus:ring-2 focus:ring-violet-500"
+            placeholder="Текст розкладу для лідерів"
+          />
+        </div>
         {submitError && <p className="text-red-500 text-sm">{submitError}</p>}
         <button type="submit" disabled={isPending || isUploading}
           className="w-full bg-violet-600 text-white font-semibold py-3 rounded-xl text-base disabled:opacity-50 active:scale-95 transition-transform">
@@ -273,9 +341,26 @@ function EditSquadSheet({ squad, onClose }: { squad: Squad; onClose: () => void 
 // --- Main Page ---
 export function SquadsPage() {
   const { data: squads, isLoading } = useSquads()
+  const [searchParams, setSearchParams] = useSearchParams()
   const [showCreate, setShowCreate] = useState(false)
-  const [selectedSquad, setSelectedSquad] = useState<Squad | null>(null)
   const [editingSquad, setEditingSquad] = useState<Squad | null>(null)
+  const selectedSquadId = searchParams.get('squadId')
+  const selectedSquad = useMemo(
+    () => (selectedSquadId ? squads?.find((squad) => squad.id === selectedSquadId) ?? null : null),
+    [selectedSquadId, squads],
+  )
+
+  function openSquadDetails(squad: Squad) {
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.set('squadId', squad.id)
+    setSearchParams(nextParams, { replace: Boolean(selectedSquadId) })
+  }
+
+  function closeSquadDetails() {
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.delete('squadId')
+    setSearchParams(nextParams, { replace: true })
+  }
 
   return (
     <div className="p-4">
@@ -305,26 +390,27 @@ export function SquadsPage() {
           {squads?.map((squad) => (
             <button key={squad.id}
               className="w-full bg-white rounded-2xl p-4 shadow-sm flex items-center gap-4 active:scale-[0.98] transition-transform text-left">
-              <button onClick={() => setSelectedSquad(squad)} className="flex items-center gap-4 flex-1 min-w-0 text-left">
+              <button onClick={() => openSquadDetails(squad)} className="flex items-center gap-4 flex-1 min-w-0 text-left">
                 <div className="w-12 h-12 rounded-xl flex-shrink-0 overflow-hidden" style={{ backgroundColor: squad.color }}>
                   {squad.photoUrl && <img src={squad.photoUrl} alt={squad.name} className="w-full h-full object-cover" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-gray-900 text-base">{squad.name}</p>
                   {squad.description && <p className="text-sm text-gray-400 truncate mt-0.5">{squad.description}</p>}
+                  <SquadAttendanceStats squadId={squad.id} />
                 </div>
               </button>
               <button onClick={() => setEditingSquad(squad)} className="text-gray-400 text-sm font-medium px-2 py-1 rounded-lg bg-gray-50 active:bg-gray-100">
                 ✏️
               </button>
-              <button onClick={() => setSelectedSquad(squad)} className="text-gray-300 text-lg">›</button>
+              <button onClick={() => openSquadDetails(squad)} className="text-gray-300 text-lg">›</button>
             </button>
           ))}
         </div>
       )}
 
       {showCreate && <CreateSquadSheet onClose={() => setShowCreate(false)} />}
-      {selectedSquad && <SquadDetailSheet squad={selectedSquad} onClose={() => setSelectedSquad(null)} />}
+      {selectedSquad && <SquadDetailSheet squad={selectedSquad} onClose={closeSquadDetails} />}
       {editingSquad && <EditSquadSheet squad={editingSquad} onClose={() => setEditingSquad(null)} />}
     </div>
   )

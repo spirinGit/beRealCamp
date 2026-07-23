@@ -31,19 +31,29 @@ async function resolveEventSquad(
     .limit(1)
 
   if (!entry) return { ok: false as const, error: 'Squad is not a participant of this event' }
-  if (entry.status !== 'pending') return { ok: false as const, error: 'Event outcome already fixed for this squad' }
-
-  await app.db.transaction(async (tx) => {
-    await tx
+  const result = await app.db.transaction(async (tx) => {
+    const resolvedAt = new Date()
+    const [updatedEntry] = await tx
       .update(eventSquads)
       .set({
         status: args.status,
         resolvedByUserId: args.actorUserId,
-        resolvedAt: new Date(),
+        resolvedAt,
         resolutionSource: args.source,
-        transactionAppliedAt: new Date(),
+        transactionAppliedAt: resolvedAt,
       })
-      .where(eq(eventSquads.id, entry.id))
+      .where(
+        and(
+          eq(eventSquads.eventId, args.eventId),
+          eq(eventSquads.squadId, args.squadId),
+          eq(eventSquads.status, 'pending'),
+        ),
+      )
+      .returning({ id: eventSquads.id })
+
+    if (!updatedEntry) {
+      return { ok: false as const, error: 'Event outcome already fixed for this squad' }
+    }
 
     const squadChildren = await tx
       .select({ id: children.id })
@@ -73,9 +83,11 @@ async function resolveEventSquad(
         })),
       )
     }
+
+    return { ok: true as const }
   })
 
-  return { ok: true as const }
+  return result
 }
 
 export async function settleExpiredEventSquads(app: FastifyInstance, campId: string) {
@@ -100,15 +112,7 @@ export async function settleExpiredEventSquads(app: FastifyInstance, campId: str
 
   for (const item of pendingExpired) {
     await app.db.transaction(async (tx) => {
-      const [current] = await tx
-        .select()
-        .from(eventSquads)
-        .where(and(eq(eventSquads.eventId, item.eventId), eq(eventSquads.squadId, item.squadId)))
-        .limit(1)
-
-      if (!current || current.status !== 'pending') return
-
-      await tx
+      const [updatedEntry] = await tx
         .update(eventSquads)
         .set({
           status: 'failed',
@@ -116,7 +120,17 @@ export async function settleExpiredEventSquads(app: FastifyInstance, campId: str
           resolutionSource: 'timeout',
           transactionAppliedAt: new Date(),
         })
-        .where(eq(eventSquads.id, current.id))
+        .where(
+          and(
+            eq(eventSquads.eventId, item.eventId),
+            eq(eventSquads.squadId, item.squadId),
+            eq(eventSquads.status, 'pending'),
+            isNull(eventSquads.transactionAppliedAt),
+          ),
+        )
+        .returning({ id: eventSquads.id })
+
+      if (!updatedEntry) return
 
       const squadChildren = await tx
         .select({ id: children.id })

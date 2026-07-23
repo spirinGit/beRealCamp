@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Coins } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { useChildBalance, useChildren } from '../../features/children'
 import { useWorkerRewards, type RewardItem } from '../../features/rewards'
 import { useSquads } from '../../features/squads'
@@ -91,14 +92,16 @@ function SpendSheet({
 }
 
 export function SpendCoinsPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const { data: rewards, isLoading: loadingReward } = useWorkerRewards()
   const { data: squads = [] } = useSquads()
   const [q, setQ] = useState('')
   const { data: results, isFetching } = useSearchChildren(q)
-  const [selectedChild, setSelectedChild] = useState<{ id: string; firstName: string; lastName: string } | null>(null)
+  const [selectedChildOverride, setSelectedChildOverride] = useState<{ id: string; firstName: string; lastName: string } | null>(null)
   const [selectedRewardId, setSelectedRewardId] = useState<string | null>(null)
   const [selectedSquadId, setSelectedSquadId] = useState<string | null>(null)
   const { data: squadChildren = [], isLoading: loadingSquadChildren } = useChildren(selectedSquadId ?? undefined)
+  const selectedChildId = searchParams.get('childId')
 
   useEffect(() => {
     if (!selectedRewardId && rewards && rewards.length > 0) {
@@ -115,6 +118,47 @@ export function SpendCoinsPage() {
   const rewardList = rewards ?? []
   const selectedReward =
     rewardList.find((reward) => reward.id === selectedRewardId) ?? rewardList[0] ?? null
+  const selectedChild = useMemo(() => {
+    if (!selectedChildId) return null
+    if (selectedChildOverride?.id === selectedChildId) return selectedChildOverride
+
+    const fromSearch = results?.find((child) => child.id === selectedChildId)
+    if (fromSearch) {
+      return {
+        id: fromSearch.id,
+        firstName: fromSearch.firstName,
+        lastName: fromSearch.lastName,
+      }
+    }
+
+    const fromSquad = squadChildren.find((child) => child.id === selectedChildId)
+    if (fromSquad) {
+      return {
+        id: fromSquad.id,
+        firstName: fromSquad.firstName,
+        lastName: fromSquad.lastName,
+      }
+    }
+
+    return null
+  }, [results, selectedChildId, selectedChildOverride, squadChildren])
+
+  function openChildSheet(child: { id: string; firstName: string; lastName: string }) {
+    // Ignore background taps while the spend sheet is already open.
+    if (selectedChildId) return
+    setSelectedChildOverride(child)
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.set('childId', child.id)
+    setSearchParams(nextParams, { replace: Boolean(selectedChildId) })
+  }
+
+  function closeChildSheet() {
+    setSelectedChildOverride(null)
+    const nextParams = new URLSearchParams(searchParams)
+    nextParams.delete('childId')
+    setSearchParams(nextParams, { replace: true })
+    setQ('')
+  }
 
   if (loadingReward) {
     return <div className="p-4 text-center pt-20 text-gray-400">Завантаження...</div>
@@ -193,7 +237,7 @@ export function SpendCoinsPage() {
             </div>
           )}
           {results?.map((child) => (
-            <button key={child.id} onClick={() => setSelectedChild(child)}
+            <button key={child.id} onClick={() => openChildSheet(child)}
               className="w-full bg-white rounded-2xl px-4 py-3.5 shadow-sm flex items-center gap-3 active:scale-[0.98] transition-transform text-left">
               <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-xl">👤</div>
               <p className="font-semibold text-gray-900">{child.firstName} {child.lastName}</p>
@@ -243,7 +287,7 @@ export function SpendCoinsPage() {
                 <button
                   key={child.id}
                   onClick={() =>
-                    setSelectedChild({
+                    openChildSheet({
                       id: child.id,
                       firstName: child.firstName,
                       lastName: child.lastName,
@@ -268,10 +312,7 @@ export function SpendCoinsPage() {
         <SpendSheet
           child={selectedChild}
           items={selectedReward.items}
-          onClose={() => {
-            setSelectedChild(null)
-            setQ('')
-          }}
+          onClose={closeChildSheet}
         />
       )}
     </div>

@@ -8,6 +8,7 @@ export interface Squad {
   name: string
   color: string
   description: string | null
+  schedule: string | null
   photoUrl: string | null
   createdAt: string
 }
@@ -46,7 +47,7 @@ export function useCreateSquad() {
   const { effectiveCampId } = useAuth()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (body: { name: string; color: string; description?: string }) => {
+    mutationFn: async (body: { name: string; color: string; description?: string; schedule?: string }) => {
       const { data } = await apiClient.post<Squad>('/squads', {
         ...body,
         campId: effectiveCampId!,
@@ -101,7 +102,7 @@ export interface SquadAvatarUploadTarget {
 export function useUpdateSquad(squadId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (body: { name?: string; color?: string; description?: string; photoUrl?: string }) => {
+    mutationFn: async (body: { name?: string; color?: string; description?: string; schedule?: string; photoUrl?: string }) => {
       const { data } = await apiClient.patch<Squad>(`/squads/${squadId}`, body)
       return data
     },

@@ -71,6 +71,34 @@
       "when": 1752541200000,
       "tag": "0009_coin_rule_achievement_flag",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784820000000,
+      "tag": "0010_coin_transactions_client_request_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784823600000,
+      "tag": "0011_transaction_sign_and_reward_price_checks",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1784827200000,
+      "tag": "0012_squad_schedule",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1784830800000,
+      "tag": "0013_promo_codes",
+      "breakpoints": true
     }
   ]
 }

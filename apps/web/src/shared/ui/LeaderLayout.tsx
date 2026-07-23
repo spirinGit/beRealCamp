@@ -3,6 +3,7 @@ import { useAuth } from '../../features/auth/AuthContext'
 
 const navItems = [
   { to: '/leader/my-squads', icon: '🏕️', label: 'Загони' },
+  { to: '/leader/schedule', icon: '🗓️', label: 'Розклад' },
   { to: '/leader/events', icon: '🎯', label: 'Події' },
   { to: '/leader/child-history', icon: '📋', label: 'Історія' },
 ]
