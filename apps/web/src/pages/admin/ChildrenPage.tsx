@@ -779,7 +779,7 @@ function EditChildSheet({
             </div>
             <label className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 cursor-pointer active:bg-gray-50">
               {child.photoUrl || avatarPreviewUrl ? 'Змінити фото' : 'Додати фото'}
-              <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden"
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
                 onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)} />
             </label>
           </div>
@@ -957,7 +957,6 @@ function CreateChildSheet({
                   <input
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
-                    capture="environment"
                     className="hidden"
                     onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)}
                   />
