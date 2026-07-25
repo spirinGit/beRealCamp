@@ -291,8 +291,8 @@ function EditSquadSheet({ squad, onClose }: { squad: Squad; onClose: () => void 
               {displayPhoto && <img src={displayPhoto} alt={name} className="w-full h-full object-cover" />}
             </div>
             <label className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 cursor-pointer active:bg-gray-50">
-              {squad.photoUrl || avatarPreviewUrl ? 'Змінити фото' : 'Додати фото'}
-              <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden"
+              {squad.photoUrl || avatarPreviewUrl ? 'Змінити фото в галереї' : 'Додати фото з галереї'}
+              <input type="file" accept=".jpg,.jpeg,.png,.webp" className="hidden"
                 onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)} />
             </label>
           </div>
