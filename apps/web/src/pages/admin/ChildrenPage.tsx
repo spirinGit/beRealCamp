@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useSquadAttendance } from '../../features/attendance'
 import {
@@ -703,6 +703,8 @@ function EditChildSheet({
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
   const { mutateAsync: updateChild, isPending } = useUpdateChild(child.id)
   const { mutate: deleteChild, isPending: isDeleting } = useDeleteChild()
   const { mutateAsync: createAvatarUploadUrl, isPending: isUploadingAvatar } = useCreateChildAvatarUploadUrl()
@@ -777,11 +779,37 @@ function EditChildSheet({
                 : <span>{child.gender === 'male' ? '👦' : '👧'}</span>
               }
             </div>
-            <label className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 cursor-pointer active:bg-gray-50">
-              {child.photoUrl || avatarPreviewUrl ? 'Змінити фото' : 'Додати фото'}
-              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
-                onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)} />
-            </label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 active:bg-gray-50"
+              >
+                📷 Камера
+              </button>
+              <button
+                type="button"
+                onClick={() => galleryInputRef.current?.click()}
+                className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 active:bg-gray-50"
+              >
+                🖼️ Галерея
+              </button>
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)}
+              />
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)}
+              />
+            </div>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -875,6 +903,8 @@ function CreateChildSheet({
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
 
   function set(key: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -952,15 +982,37 @@ function CreateChildSheet({
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Аватар дитини</label>
               <div className="flex items-center gap-3">
-                <label className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 cursor-pointer">
-                  Обрати фото
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => cameraInputRef.current?.click()}
+                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 active:bg-gray-50"
+                  >
+                    📷 Камера
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => galleryInputRef.current?.click()}
+                    className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 active:bg-gray-50"
+                  >
+                    🖼️ Галерея
+                  </button>
                   <input
+                    ref={cameraInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)}
+                  />
+                  <input
+                    ref={galleryInputRef}
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
                     className="hidden"
                     onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)}
                   />
-                </label>
+                </div>
                 {avatarPreviewUrl ? (
                   <img src={avatarPreviewUrl} alt="avatar preview" className="w-12 h-12 rounded-full object-cover" />
                 ) : (

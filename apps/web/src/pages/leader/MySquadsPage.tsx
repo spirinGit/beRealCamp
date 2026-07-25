@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useBulkMarkAttendance, useMarkAttendance, useSquadAttendance } from '../../features/attendance'
 import {
@@ -73,6 +73,8 @@ function AddChildSheet({ squad, onClose }: { squad: Squad; onClose: () => void }
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
 
   const canSubmit = firstName.trim().length > 0 && lastName.trim().length > 0 && dateOfBirth.length > 0
 
@@ -160,15 +162,37 @@ function AddChildSheet({ squad, onClose }: { squad: Squad; onClose: () => void }
           <div>
             <p className="text-sm font-medium text-gray-700 mb-1">Аватар дитини</p>
             <div className="flex items-center gap-3">
-              <label className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 cursor-pointer">
-                Обрати фото
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 active:bg-gray-50"
+                >
+                  📷 Камера
+                </button>
+                <button
+                  type="button"
+                  onClick={() => galleryInputRef.current?.click()}
+                  className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 active:bg-gray-50"
+                >
+                  🖼️ Галерея
+                </button>
                 <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)}
+                />
+                <input
+                  ref={galleryInputRef}
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   className="hidden"
                   onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)}
                 />
-              </label>
+              </div>
               {avatarPreviewUrl ? (
                 <img src={avatarPreviewUrl} alt="avatar preview" className="w-12 h-12 rounded-full object-cover" />
               ) : (
@@ -293,8 +317,8 @@ function LeaderEditSquadSheet({ squad, onClose }: { squad: Squad; onClose: () =>
               {displayPhoto && <img src={displayPhoto} alt={squad.name} className="w-full h-full object-cover" />}
             </div>
             <label className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 cursor-pointer active:bg-gray-50">
-              {squad.photoUrl || avatarPreviewUrl ? 'Змінити фото' : 'Додати фото'}
-              <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" className="hidden"
+              {squad.photoUrl || avatarPreviewUrl ? 'Змінити фото в галереї' : 'Додати фото з галереї'}
+              <input type="file" accept=".jpg,.jpeg,.png,.webp" className="hidden"
                 onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)} />
             </label>
           </div>
@@ -618,6 +642,8 @@ function LeaderEditChildSheet({ child, onClose, onDeleted }: { child: Child; onC
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
   const { mutateAsync: updateChild, isPending } = useUpdateChild(child.id)
   const { mutate: deleteChild, isPending: isDeleting } = useDeleteChild()
   const { mutateAsync: createAvatarUploadUrl, isPending: isUploadingAvatar } = useCreateChildAvatarUploadUrl()
@@ -692,11 +718,37 @@ function LeaderEditChildSheet({ child, onClose, onDeleted }: { child: Child; onC
                 : <span>{child.gender === 'male' ? '👦' : '👧'}</span>
               }
             </div>
-            <label className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 cursor-pointer active:bg-gray-50">
-              {child.photoUrl || avatarPreviewUrl ? 'Змінити фото' : 'Додати фото'}
-              <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
-                onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)} />
-            </label>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => cameraInputRef.current?.click()}
+                className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 active:bg-gray-50"
+              >
+                📷 Камера
+              </button>
+              <button
+                type="button"
+                onClick={() => galleryInputRef.current?.click()}
+                className="px-3 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 active:bg-gray-50"
+              >
+                🖼️ Галерея
+              </button>
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)}
+              />
+              <input
+                ref={galleryInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={(e) => handleAvatarSelect(e.target.files?.[0] ?? null)}
+              />
+            </div>
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
