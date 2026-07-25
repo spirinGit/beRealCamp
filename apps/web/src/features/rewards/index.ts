@@ -11,14 +11,22 @@ export interface RewardItem {
   isActive: boolean
 }
 
+export interface RewardWorker {
+  id: string
+  firstName: string
+  lastName: string
+  email: string
+  photoUrl: string | null
+}
+
 export interface Reward {
   id: string
   campId: string
-  workerId: string | null
   name: string
   description: string | null
   photoUrl: string | null
   isActive: boolean
+  workers?: RewardWorker[]
   items?: RewardItem[]
 }
 
@@ -70,17 +78,43 @@ export function useCreateReward() {
   })
 }
 
-export function useAssignWorker(rewardId: string) {
+export function useAssignWorkers(rewardId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (workerId: string | null) => {
-      const { data } = await apiClient.post(`/rewards/${rewardId}/assign`, { workerId })
+    mutationFn: async (workerIds: string[]) => {
+      const { data } = await apiClient.post(`/rewards/${rewardId}/assign-workers`, { workerIds })
       return data
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['rewards'] })
       qc.invalidateQueries({ queryKey: ['reward', rewardId] })
       qc.invalidateQueries({ queryKey: ['worker-rewards-mine'] })
+    },
+  })
+}
+
+export function useAddWorkerToReward(rewardId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (workerId: string) => {
+      await apiClient.post(`/rewards/${rewardId}/workers/${workerId}`)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['reward', rewardId] })
+      qc.invalidateQueries({ queryKey: ['rewards'] })
+    },
+  })
+}
+
+export function useRemoveWorkerFromReward(rewardId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (workerId: string) => {
+      await apiClient.delete(`/rewards/${rewardId}/workers/${workerId}`)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['reward', rewardId] })
+      qc.invalidateQueries({ queryKey: ['rewards'] })
     },
   })
 }
