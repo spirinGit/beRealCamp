@@ -13,10 +13,15 @@ import {
   deleteReward,
   getRewardById,
   getRewardWithItems,
+  getRewardWithWorkers,
   listWorkerRewards,
   listRewards,
   updateReward,
   updateRewardItem,
+  getRewardWorkers,
+  assignWorkerToReward,
+  removeWorkerFromReward,
+  updateRewardWorkers,
 } from './rewards.service.js'
 
 const createRewardBody = z.object({
@@ -33,8 +38,8 @@ const updateRewardBody = z.object({
   isActive: z.boolean().optional(),
 })
 
-const assignWorkerBody = z.object({
-  workerId: z.string().uuid().nullable(),
+const assignWorkersBody = z.object({
+  workerIds: z.array(z.string().uuid()),
 })
 
 const createItemBody = z.object({
@@ -73,17 +78,17 @@ export async function registerRewardsRoutes(app: FastifyInstance) {
     return listRewards(app, campId ?? request.user.campId)
   })
 
-  // GET /rewards/mine  — своя точка + позиції (для Worker)
+  // GET /rewards/mine  — свої точки + позиції (для Worker)
   app.get('/mine', { preHandler: [requireWorkerRole] }, async (request, reply) => {
     const rewards = await listWorkerRewards(app, request.user.userId)
     if (rewards.length === 0) return reply.code(404).send({ error: 'No shop assigned to you' })
     return rewards
   })
 
-  // GET /rewards/:id  — точка + позиції
+  // GET /rewards/:id  — точка + позиції + воркери
   app.get('/:id', { preHandler: [authenticate] }, async (request, reply) => {
     const { id } = request.params as { id: string }
-    const reward = await getRewardWithItems(app, id)
+    const reward = await getRewardWithWorkers(app, id)
     if (!reward) return reply.code(404).send({ error: 'Reward not found' })
     return reward
   })
@@ -114,14 +119,43 @@ export async function registerRewardsRoutes(app: FastifyInstance) {
     return { message: 'Reward deleted' }
   })
 
-  // POST /rewards/:id/assign  — Admin призначає Worker до точки
-  app.post('/:id/assign', { preHandler: [requireAdmin] }, async (request, reply) => {
+  // POST /rewards/:id/assign-workers  — Admin призначає воркерів до точки
+  app.post('/:id/assign-workers', { preHandler: [requireAdmin] }, async (request, reply) => {
     const { id } = request.params as { id: string }
-    const parsed = assignWorkerBody.safeParse(request.body)
-    if (!parsed.success) return reply.code(400).send({ error: 'Invalid input' })
-    const reward = await updateReward(app, id, { workerId: parsed.data.workerId })
+    const parsed = assignWorkersBody.safeParse(request.body)
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid input', details: parsed.error.flatten() })
+    
+    const reward = await getRewardById(app, id)
     if (!reward) return reply.code(404).send({ error: 'Reward not found' })
-    return reward
+    
+    await updateRewardWorkers(app, id, parsed.data.workerIds)
+    const workers = await getRewardWorkers(app, id)
+    
+    return { ...reward, workers }
+  })
+
+  // POST /rewards/:id/workers/:workerId  — Додати одного воркера
+  app.post('/:id/workers/:workerId', { preHandler: [requireAdmin] }, async (request, reply) => {
+    const { id, workerId } = request.params as { id: string; workerId: string }
+    
+    const reward = await getRewardById(app, id)
+    if (!reward) return reply.code(404).send({ error: 'Reward not found' })
+    
+    const result = await assignWorkerToReward(app, id, workerId)
+    if (!result) return reply.code(400).send({ error: 'Worker already assigned to this reward' })
+    
+    return { message: 'Worker assigned' }
+  })
+
+  // DELETE /rewards/:id/workers/:workerId  — Видалити одного воркера
+  app.delete('/:id/workers/:workerId', { preHandler: [requireAdmin] }, async (request, reply) => {
+    const { id, workerId } = request.params as { id: string; workerId: string }
+    
+    const reward = await getRewardById(app, id)
+    if (!reward) return reply.code(404).send({ error: 'Reward not found' })
+    
+    await removeWorkerFromReward(app, id, workerId)
+    return { message: 'Worker removed' }
   })
 
   // GET /rewards/:id/items  — позиції в точці
