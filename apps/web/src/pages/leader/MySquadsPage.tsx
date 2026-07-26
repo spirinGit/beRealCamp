@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useCurrentCampPublicCode } from '../../features/camps'
 import { useBulkMarkAttendance, useMarkAttendance, useSquadAttendance } from '../../features/attendance'
 import {
   type Child,
@@ -12,7 +13,7 @@ import {
   useUpdateChild,
 } from '../../features/children'
 import { type Squad, useCreateSquadAvatarUploadUrl, useSquads, useUpdateSquad } from '../../features/squads'
-import { BottomSheet, PhotoViewer } from '../../shared/ui'
+import { BottomSheet, PhotoViewer, Toast } from '../../shared/ui'
 import {
   type CoinRule,
   useBulkEarnCoins,
@@ -374,11 +375,25 @@ function EarnSheet({
   const [showPenaltyForm, setShowPenaltyForm] = useState(false)
   const [showAttendance, setShowAttendance] = useState(false)
   const [showEditChild, setShowEditChild] = useState(false)
+  const [showAchievementsForm, setShowAchievementsForm] = useState(false)
+  const [selectedAchievementRuleId, setSelectedAchievementRuleId] = useState<string | null>(null)
+  const [achievementComment, setAchievementComment] = useState('')
   const [photoOpen, setPhotoOpen] = useState(false)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const navigate = useNavigate()
+  const { data: currentCampData } = useCurrentCampPublicCode()
   const { mutate, isPending } = useEarnCoins()
   const { mutate: spend, isPending: isSpending } = useSpendCoins()
   const { mutate: markAttendance, isPending: isMarkingAttendance } = useMarkAttendance(squadId)
   const { data: balance = 0 } = useChildBalance(child.id)
+
+  const regularRules = rules.filter((r) => !r.isAchievement) ?? []
+  const achievementRules = rules.filter((r) => r.isAchievement) ?? []
+  const selectedAchievementRule = achievementRules.find((r) => r.id === selectedAchievementRuleId) ?? null
+  const achievementAmount = selectedAchievementRule?.points ?? 0
+  const achievementReason = selectedAchievementRule?.label ?? ''
+  const achievementMetadata = selectedAchievementRule ? { isAchievement: true, achievementKey: `rule:${selectedAchievementRule.id}`, ...(selectedAchievementRule.photoUrl ? { rulePhotoUrl: selectedAchievementRule.photoUrl } : {}), ...(selectedAchievementRule.description ? { ruleDescription: selectedAchievementRule.description } : {}) } : {}
+  const canSubmitAchievement = achievementAmount > 0 && achievementReason.length > 0
 
   const earnAmount = mode === 'preset' ? (selected?.points ?? 0) : Number(customAmount) || 0
   const canSubmit = mode === 'preset' ? !!selected : !!customReason && earnAmount > 0
@@ -413,7 +428,18 @@ function EarnSheet({
         comment: comment || undefined,
         metadata: Object.keys(earnMetadata).length > 0 ? earnMetadata : undefined,
       },
-      { onSuccess: onClose },
+      {
+        onSuccess: () => {
+          setToast({ message: `Нараховано +${earnAmount} ⭐`, type: 'success' })
+          setTimeout(() => {
+            setShowAwardForm(false)
+            onClose()
+          }, 2000)
+        },
+        onError: () => {
+          setToast({ message: 'Помилка при нарахуванні балів', type: 'error' })
+        },
+      },
     )
   }
 
@@ -428,13 +454,56 @@ function EarnSheet({
         comment: penaltyComment || undefined,
         metadata: penaltyMetadata,
       },
-      { onSuccess: onClose },
+      {
+        onSuccess: () => {
+          setToast({ message: `Знято -${spendAmount} ⭐`, type: 'success' })
+          setTimeout(() => {
+            setShowPenaltyForm(false)
+            onClose()
+          }, 2000)
+        },
+        onError: () => {
+          setToast({ message: 'Помилка при знятті балів', type: 'error' })
+        },
+      },
+    )
+  }
+
+  function handleAchievementSubmit() {
+    if (!canSubmitAchievement) return
+    mutate(
+      {
+        childId: child.id,
+        amount: achievementAmount,
+        reason: achievementReason,
+        comment: achievementComment.trim() || undefined,
+        metadata: Object.keys(achievementMetadata).length > 0 ? achievementMetadata : undefined,
+      },
+      {
+        onSuccess: () => {
+          setToast({ message: `🏆 Досягнення нараховано! +${achievementAmount} ⭐`, type: 'success' })
+          setTimeout(() => {
+            setSelectedAchievementRuleId(null)
+            setAchievementComment('')
+            setShowAchievementsForm(false)
+            onClose()
+          }, 2000)
+        },
+        onError: () => {
+          setToast({ message: 'Помилка при нарахуванні досягнення', type: 'error' })
+        },
+      },
     )
   }
 
   function handleMarkAttendance(isPresent: boolean) {
     if (!attendanceToday) return
     markAttendance({ childId: child.id, day: attendanceToday, isPresent })
+  }
+
+  function handleViewProfile() {
+    if (!currentCampData?.publicAccessCode) return
+    navigate(`/child/profile?code=${currentCampData.publicAccessCode}&childId=${child.id}`)
   }
 
   return (
@@ -535,16 +604,29 @@ function EarnSheet({
             </>
           )}
           <button
-            onClick={() => setShowAwardForm((prev) => !prev)}
+            onClick={() => { setShowAwardForm(!showAwardForm); setShowPenaltyForm(false); setShowAchievementsForm(false) }}
             className="w-full mt-3 bg-violet-600 text-white font-semibold py-3 rounded-xl text-base"
           >
             Нарахувати бали
           </button>
           <button
-            onClick={() => setShowPenaltyForm((prev) => !prev)}
+            onClick={() => { setShowPenaltyForm(!showPenaltyForm); setShowAwardForm(false); setShowAchievementsForm(false) }}
             className="w-full mt-2 bg-red-600 text-white font-semibold py-3 rounded-xl text-base"
           >
             Зняти бали
+          </button>
+          <button
+            onClick={() => { setShowAchievementsForm(!showAchievementsForm); setShowAwardForm(false); setShowPenaltyForm(false) }}
+            className="w-full mt-2 bg-yellow-600 text-white font-semibold py-3 rounded-xl text-base"
+          >
+            🏆 Нарахувати досягнення
+          </button>
+          <button
+            onClick={handleViewProfile}
+            disabled={!currentCampData?.publicAccessCode}
+            className="w-full mt-2 bg-purple-600 text-white font-semibold py-3 rounded-xl text-base disabled:opacity-50"
+          >
+            👁️ Переглянути публічний профіль
           </button>
         </div>
 
@@ -556,11 +638,11 @@ function EarnSheet({
             </div>
 
             {mode === 'preset' ? (
-              rules.length === 0 ? (
+              regularRules.length === 0 ? (
                 <p className="text-sm text-gray-400 italic">Правил нарахування ще немає</p>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
-                  {rules.map((rule) => (
+                  {regularRules.map((rule) => (
                     <button key={rule.id} onClick={() => setSelected(rule === selected ? null : rule)} className={`rounded-xl border px-3 py-2 text-left ${selected?.id === rule.id ? 'border-violet-500 bg-violet-50 text-violet-700' : 'border-gray-200 bg-white text-gray-700'}`}>
                       <p className="text-sm font-bold">+{rule.points}</p>
                       <p className="text-xs">{rule.label}</p>
@@ -615,6 +697,52 @@ function EarnSheet({
             </button>
           </div>
         )}
+        {showAchievementsForm && (
+          <div className="px-6 pb-8 space-y-4">
+            {achievementRules.length === 0 ? (
+              <p className="text-sm text-gray-400 italic">Досягнень поки немає</p>
+            ) : (
+              <div className="space-y-2">
+                {achievementRules.map((rule) => (
+                  <button
+                    key={rule.id}
+                    onClick={() => setSelectedAchievementRuleId(selectedAchievementRuleId === rule.id ? null : rule.id)}
+                    className={`w-full rounded-xl border px-4 py-3 text-left transition-colors ${
+                      selectedAchievementRuleId === rule.id
+                        ? 'border-yellow-500 bg-yellow-50 text-yellow-700'
+                        : 'border-gray-200 bg-white text-gray-700'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="text-sm font-bold">{rule.label}</p>
+                        {rule.description && <p className="text-xs text-gray-500 mt-0.5">{rule.description}</p>}
+                      </div>
+                      <p className="text-sm font-bold">+{rule.points}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {selectedAchievementRule && (
+              <input
+                value={achievementComment}
+                onChange={(e) => setAchievementComment(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500"
+                placeholder="Коментар (необов'язково)"
+              />
+            )}
+
+            <button
+              onClick={handleAchievementSubmit}
+              disabled={!canSubmitAchievement || isPending}
+              className="w-full bg-yellow-600 text-white font-semibold py-3 rounded-xl disabled:opacity-50"
+            >
+              {isPending ? 'Збереження...' : `Нарахувати${achievementAmount > 0 ? ` +${achievementAmount}` : ''} 🏆`}
+            </button>
+          </div>
+        )}
       {showEditChild && (
         <LeaderEditChildSheet
           child={child}
@@ -625,6 +753,7 @@ function EarnSheet({
           }}
         />
       )}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </BottomSheet>
   )
 }
@@ -826,6 +955,7 @@ function BulkEarnSheet({ children, rules, onClose }: { children: Child[]; rules:
   const [customAmount, setCustomAmount] = useState('')
   const [comment, setComment] = useState('')
   const [mode, setMode] = useState<'preset' | 'custom'>('preset')
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const { mutate, isPending } = useBulkEarnCoins()
   const earnAmount = mode === 'preset' ? (selected?.points ?? 0) : Number(customAmount) || 0
   const canSubmit = mode === 'preset' ? !!selected : !!customReason && earnAmount > 0
@@ -852,7 +982,18 @@ function BulkEarnSheet({ children, rules, onClose }: { children: Child[]; rules:
         comment: comment || undefined,
         metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
       },
-      { onSuccess: onClose },
+      {
+        onSuccess: (result: any) => {
+          setToast({ message: `✅ Нараховано +${earnAmount} ⭐ для ${result.count} дітей`, type: 'success' })
+          setTimeout(() => {
+            onClose()
+          }, 2000)
+        },
+        onError: (error: any) => {
+          const errorMsg = error?.response?.data?.error || 'Помилка при масовому нарахуванні'
+          setToast({ message: `❌ ${errorMsg}`, type: 'error' })
+        },
+      },
     )
   }
 
@@ -883,6 +1024,7 @@ function BulkEarnSheet({ children, rules, onClose }: { children: Child[]; rules:
         <button onClick={handleSubmit} disabled={!canSubmit || isPending || children.length === 0} className="w-full bg-violet-600 text-white font-semibold py-3 rounded-xl disabled:opacity-50">
           {isPending ? 'Збереження...' : `Нарахувати вибраним +${earnAmount || 0} ⭐`}
         </button>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </BottomSheet>
   )
 }
@@ -893,6 +1035,7 @@ function BulkPenaltySheet({ children, rules, onClose }: { children: Child[]; rul
   const [customAmount, setCustomAmount] = useState('')
   const [comment, setComment] = useState('')
   const [mode, setMode] = useState<'preset' | 'custom'>('preset')
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
   const { mutate, isPending } = useBulkSpendCoins()
   const spendAmount = mode === 'preset' ? Math.abs(selected?.points ?? 0) : Number(customAmount) || 0
   const canSubmit = mode === 'preset' ? !!selected : !!customReason && spendAmount > 0
@@ -900,7 +1043,27 @@ function BulkPenaltySheet({ children, rules, onClose }: { children: Child[]; rul
   function handleSubmit() {
     if (!canSubmit) return
     const reason = mode === 'preset' ? selected!.label : customReason
-    mutate({ childIds: children.map((c) => c.id), amount: spendAmount, reason, comment: comment || undefined, metadata: selected?.photoUrl || selected?.description ? { rulePhotoUrl: selected.photoUrl, ruleDescription: selected.description ?? undefined } : undefined }, { onSuccess: onClose })
+    mutate(
+      {
+        childIds: children.map((c) => c.id),
+        amount: spendAmount,
+        reason,
+        comment: comment || undefined,
+        metadata: selected?.photoUrl || selected?.description ? { rulePhotoUrl: selected.photoUrl, ruleDescription: selected.description ?? undefined } : undefined,
+      },
+      {
+        onSuccess: (result: any) => {
+          setToast({ message: `✅ Знято -${spendAmount} ⭐ для ${result.count} дітей`, type: 'success' })
+          setTimeout(() => {
+            onClose()
+          }, 2000)
+        },
+        onError: (error: any) => {
+          const errorMsg = error?.response?.data?.error || 'Помилка при масовому покаранні'
+          setToast({ message: `❌ ${errorMsg}`, type: 'error' })
+        },
+      },
+    )
   }
 
   return (
@@ -930,6 +1093,7 @@ function BulkPenaltySheet({ children, rules, onClose }: { children: Child[]; rul
         <button onClick={handleSubmit} disabled={!canSubmit || isPending || children.length === 0} className="w-full bg-red-600 text-white font-semibold py-3 rounded-xl disabled:opacity-50">
           {isPending ? 'Збереження...' : `Зняти вибраним -${spendAmount || 0} ⭐`}
         </button>
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </BottomSheet>
   )
 }
@@ -1114,6 +1278,7 @@ export function MySquadsPage() {
   const { data: penalties = [] } = usePenaltyRules()
   const [searchParams, setSearchParams] = useSearchParams()
   const [editingSquad, setEditingSquad] = useState<Squad | null>(null)
+  const [viewingSquadPhotoUrl, setViewingSquadPhotoUrl] = useState<string | null>(null)
   const openSquad = searchParams.get('squadId')
   const openChildId = searchParams.get('childId')
 
@@ -1173,9 +1338,14 @@ export function MySquadsPage() {
                   onClick={() => toggleSquad(squad.id)}
                   className="flex items-center gap-4 text-left flex-1 min-w-0"
                 >
-                <div className="w-12 h-12 rounded-xl flex-shrink-0 overflow-hidden" style={{ backgroundColor: squad.color }}>
+                <button
+                  type="button"
+                  onClick={() => squad.photoUrl && setViewingSquadPhotoUrl(squad.photoUrl)}
+                  className="w-12 h-12 rounded-xl flex-shrink-0 overflow-hidden cursor-pointer active:opacity-80 transition-opacity"
+                  style={{ backgroundColor: squad.color }}
+                >
                     {squad.photoUrl && <img src={squad.photoUrl} alt={squad.name} className="w-full h-full object-cover" />}
-                  </div>
+                  </button>
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900 truncate">{squad.name}</p>
                     {squad.description && <p className="text-sm text-gray-400 truncate">{squad.description}</p>}
@@ -1205,6 +1375,7 @@ export function MySquadsPage() {
         </div>
       )}
       {editingSquad && <LeaderEditSquadSheet squad={editingSquad} onClose={() => setEditingSquad(null)} />}
+      {viewingSquadPhotoUrl && <PhotoViewer src={viewingSquadPhotoUrl} onClose={() => setViewingSquadPhotoUrl(null)} />}
     </div>
   )
 }

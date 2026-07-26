@@ -15,6 +15,7 @@ export interface Reward {
   id: string
   campId: string
   workerId: string | null
+  workerIds: string[]
   name: string
   description: string | null
   photoUrl: string | null
@@ -73,11 +74,38 @@ export function useCreateReward() {
 export function useAssignWorker(rewardId: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (workerId: string | null) => {
-      const { data } = await apiClient.post(`/rewards/${rewardId}/assign`, { workerId })
+    mutationFn: async (workerId: string) => {
+      const { data } = await apiClient.post<Reward>(`/rewards/${rewardId}/assign`, { workerId })
       return data
     },
-    onSuccess: () => {
+    onSuccess: (updatedReward) => {
+      qc.setQueryData<Reward>(['reward', rewardId], (old) =>
+        old ? { ...old, workerIds: updatedReward.workerIds } : old,
+      )
+      qc.setQueriesData<Reward[]>({ queryKey: ['rewards'] }, (old) =>
+        old?.map((r) => (r.id === rewardId ? { ...r, workerIds: updatedReward.workerIds } : r)),
+      )
+      qc.invalidateQueries({ queryKey: ['rewards'] })
+      qc.invalidateQueries({ queryKey: ['reward', rewardId] })
+      qc.invalidateQueries({ queryKey: ['worker-rewards-mine'] })
+    },
+  })
+}
+
+export function useUnassignWorker(rewardId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async (workerId: string) => {
+      const { data } = await apiClient.delete<Reward>(`/rewards/${rewardId}/workers/${workerId}`)
+      return data
+    },
+    onSuccess: (updatedReward) => {
+      qc.setQueryData<Reward>(['reward', rewardId], (old) =>
+        old ? { ...old, workerIds: updatedReward.workerIds } : old,
+      )
+      qc.setQueriesData<Reward[]>({ queryKey: ['rewards'] }, (old) =>
+        old?.map((r) => (r.id === rewardId ? { ...r, workerIds: updatedReward.workerIds } : r)),
+      )
       qc.invalidateQueries({ queryKey: ['rewards'] })
       qc.invalidateQueries({ queryKey: ['reward', rewardId] })
       qc.invalidateQueries({ queryKey: ['worker-rewards-mine'] })

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { requireAdmin } from '../../lib/auth.js'
+import { authenticate, requireAdmin } from '../../lib/auth.js'
 import {
   archiveCamp,
   createCamp,
@@ -76,6 +76,22 @@ export async function registerCampsRoutes(app: FastifyInstance) {
   // GET /camps
   app.get('/', { preHandler: [requireAdmin] }, async () => {
     return listCamps(app)
+  })
+
+  // GET /camps/current/public-code - для лідерів
+  app.get('/current/public-code', { preHandler: [authenticate] }, async (request) => {
+    const campId = request.user?.campId
+    if (!campId) {
+      return { error: 'No camp assigned' }
+    }
+    const camp = await getCampById(app, campId)
+    if (!camp) {
+      return { error: 'Camp not found' }
+    }
+    return {
+      id: camp.id,
+      publicAccessCode: camp.publicAccessCode,
+    }
   })
 
   // POST /camps

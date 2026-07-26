@@ -3,7 +3,20 @@ import type { FastifyInstance } from 'fastify'
 import { squadLeaders, squads, users } from '../../db/schema/index.js'
 
 export async function listSquads(app: FastifyInstance, campId: string) {
-  return app.db.select().from(squads).where(eq(squads.campId, campId)).orderBy(squads.name)
+  return app.db
+    .select({
+      id: squads.id,
+      campId: squads.campId,
+      name: squads.name,
+      color: squads.color,
+      description: squads.description,
+      schedule: squads.schedule,
+      photoUrl: squads.photoUrl,
+      createdAt: squads.createdAt,
+    })
+    .from(squads)
+    .where(eq(squads.campId, campId))
+    .orderBy(squads.name)
 }
 
 // Лише загони, до яких призначено лідера (BR-016)
@@ -26,7 +39,20 @@ export async function listSquadsForLeader(app: FastifyInstance, leaderId: string
 }
 
 export async function getSquadById(app: FastifyInstance, id: string) {
-  const [squad] = await app.db.select().from(squads).where(eq(squads.id, id)).limit(1)
+  const [squad] = await app.db
+    .select({
+      id: squads.id,
+      campId: squads.campId,
+      name: squads.name,
+      color: squads.color,
+      description: squads.description,
+      schedule: squads.schedule,
+      photoUrl: squads.photoUrl,
+      createdAt: squads.createdAt,
+    })
+    .from(squads)
+    .where(eq(squads.id, id))
+    .limit(1)
   return squad ?? null
 }
 

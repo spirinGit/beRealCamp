@@ -251,3 +251,13 @@ export function usePublicShop(code?: string | null) {
     enabled: !!code,
   })
 }
+
+export function useCurrentCampPublicCode() {
+  return useQuery({
+    queryKey: ['camps', 'current', 'public-code'],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ id: string; publicAccessCode: string }>('/camps/current/public-code')
+      return data
+    },
+  })
+}
