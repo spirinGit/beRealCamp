@@ -8,6 +8,7 @@ import {
   isAvatarStorageConfigured,
 } from '../../lib/r2-storage.js'
 import {
+  assignWorkerToReward,
   createReward,
   createRewardItem,
   deleteReward,
@@ -15,6 +16,7 @@ import {
   getRewardWithItems,
   listWorkerRewards,
   listRewards,
+  unassignWorkerFromReward,
   updateReward,
   updateRewardItem,
 } from './rewards.service.js'
@@ -114,12 +116,23 @@ export async function registerRewardsRoutes(app: FastifyInstance) {
     return { message: 'Reward deleted' }
   })
 
-  // POST /rewards/:id/assign  — Admin призначає Worker до точки
+  // POST /rewards/:id/assign  — Admin додає воркера до точки
   app.post('/:id/assign', { preHandler: [requireAdmin] }, async (request, reply) => {
     const { id } = request.params as { id: string }
     const parsed = assignWorkerBody.safeParse(request.body)
     if (!parsed.success) return reply.code(400).send({ error: 'Invalid input' })
-    const reward = await updateReward(app, id, { workerId: parsed.data.workerId })
+    if (parsed.data.workerId === null) return reply.code(400).send({ error: 'workerId is required' })
+    await assignWorkerToReward(app, id, parsed.data.workerId)
+    const reward = await getRewardWithItems(app, id)
+    if (!reward) return reply.code(404).send({ error: 'Reward not found' })
+    return reward
+  })
+
+  // DELETE /rewards/:id/workers/:workerId  — Admin знімає конкретного воркера з точки
+  app.delete('/:id/workers/:workerId', { preHandler: [requireAdmin] }, async (request, reply) => {
+    const { id, workerId } = request.params as { id: string; workerId: string }
+    await unassignWorkerFromReward(app, id, workerId)
+    const reward = await getRewardWithItems(app, id)
     if (!reward) return reply.code(404).send({ error: 'Reward not found' })
     return reward
   })

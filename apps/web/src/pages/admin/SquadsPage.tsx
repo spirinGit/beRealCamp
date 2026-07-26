@@ -13,7 +13,7 @@ import {
   useUpdateSquad,
 } from '../../features/squads'
 import { useUsers } from '../../features/users'
-import { BottomSheet } from '../../shared/ui'
+import { BottomSheet, PhotoViewer } from '../../shared/ui'
 
 async function uploadSquadAvatarFile(uploadUrl: string, file: File) {
   const res = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file })
@@ -48,17 +48,26 @@ function SquadDetailSheet({ squad, onClose }: { squad: Squad; onClose: () => voi
   const { data: users } = useUsers()
   const { mutate: assign, isPending: assigning } = useAssignLeader(squad.id)
   const { mutate: remove } = useRemoveLeader(squad.id)
+  const [viewingPhotoUrl, setViewingPhotoUrl] = useState<string | null>(null)
 
   const leaderIds = new Set(leaders?.map((l) => l.id))
   const availableLeaders = users?.filter((u) => u.role === 'Leader' && u.isActive && !leaderIds.has(u.id)) ?? []
 
   return (
+    <>
     <BottomSheet onClose={onClose} className="p-6 space-y-5 max-h-[85dvh] overflow-y-auto">
       <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto" />
 
         {/* Squad header */}
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl flex-shrink-0" style={{ backgroundColor: squad.color }} />
+          <button
+            type="button"
+            onClick={() => squad.photoUrl && setViewingPhotoUrl(squad.photoUrl)}
+            className="w-12 h-12 rounded-xl flex-shrink-0 overflow-hidden cursor-pointer active:opacity-80 transition-opacity"
+            style={{ backgroundColor: squad.color }}
+          >
+            {squad.photoUrl && <img src={squad.photoUrl} alt={squad.name} className="w-full h-full object-cover" />}
+          </button>
           <div>
             <h2 className="text-xl font-bold text-gray-900">{squad.name}</h2>
             {squad.description && <p className="text-sm text-gray-400">{squad.description}</p>}
@@ -163,6 +172,8 @@ function SquadDetailSheet({ squad, onClose }: { squad: Squad; onClose: () => voi
           <p className="text-sm text-gray-400">Спочатку створіть лідерів у розділі Юзери</p>
         )}
     </BottomSheet>
+    {viewingPhotoUrl && <PhotoViewer src={viewingPhotoUrl} onClose={() => setViewingPhotoUrl(null)} />}
+    </>
   )
 }
 
@@ -344,6 +355,7 @@ export function SquadsPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [showCreate, setShowCreate] = useState(false)
   const [editingSquad, setEditingSquad] = useState<Squad | null>(null)
+  const [viewingSquadPhotoUrl, setViewingSquadPhotoUrl] = useState<string | null>(null)
   const selectedSquadId = searchParams.get('squadId')
   const selectedSquad = useMemo(
     () => (selectedSquadId ? squads?.find((squad) => squad.id === selectedSquadId) ?? null : null),
@@ -391,9 +403,17 @@ export function SquadsPage() {
             <button key={squad.id}
               className="w-full bg-white rounded-2xl p-4 shadow-sm flex items-center gap-4 active:scale-[0.98] transition-transform text-left">
               <button onClick={() => openSquadDetails(squad)} className="flex items-center gap-4 flex-1 min-w-0 text-left">
-                <div className="w-12 h-12 rounded-xl flex-shrink-0 overflow-hidden" style={{ backgroundColor: squad.color }}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    squad.photoUrl && setViewingSquadPhotoUrl(squad.photoUrl)
+                  }}
+                  className="w-12 h-12 rounded-xl flex-shrink-0 overflow-hidden cursor-pointer active:opacity-80 transition-opacity"
+                  style={{ backgroundColor: squad.color }}
+                >
                   {squad.photoUrl && <img src={squad.photoUrl} alt={squad.name} className="w-full h-full object-cover" />}
-                </div>
+                </button>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-gray-900 text-base">{squad.name}</p>
                   {squad.description && <p className="text-sm text-gray-400 truncate mt-0.5">{squad.description}</p>}
@@ -412,6 +432,7 @@ export function SquadsPage() {
       {showCreate && <CreateSquadSheet onClose={() => setShowCreate(false)} />}
       {selectedSquad && <SquadDetailSheet squad={selectedSquad} onClose={closeSquadDetails} />}
       {editingSquad && <EditSquadSheet squad={editingSquad} onClose={() => setEditingSquad(null)} />}
+      {viewingSquadPhotoUrl && <PhotoViewer src={viewingSquadPhotoUrl} onClose={() => setViewingSquadPhotoUrl(null)} />}
     </div>
   )
 }

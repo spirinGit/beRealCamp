@@ -219,19 +219,12 @@ export function useBulkEarnCoins() {
 
       const batchRequestId = body.clientRequestId ?? requestIds.current.get(fingerprint) ?? createRequestId()
       requestIds.current.set(fingerprint, batchRequestId)
-      const request = Promise.all(
-        body.childIds.map((childId) =>
-          apiClient.post('/transactions/earn', {
-            campId: effectiveCampId!,
-            childId,
-            amount: body.amount,
-            reason: body.reason,
-            comment: body.comment,
-            metadata: body.metadata,
-            clientRequestId: `${batchRequestId}:${childId}`,
-          }),
-        ),
-      ).then(() => ({ count: body.childIds.length }))
+
+      const request = apiClient.post<{ count: number }>('/transactions/bulk-earn', {
+        ...body,
+        campId: effectiveCampId!,
+        clientRequestId: batchRequestId,
+      }).then((response) => response.data)
 
       inFlight.current.set(fingerprint, request)
 
@@ -263,19 +256,12 @@ export function useBulkSpendCoins() {
 
       const batchRequestId = body.clientRequestId ?? requestIds.current.get(fingerprint) ?? createRequestId()
       requestIds.current.set(fingerprint, batchRequestId)
-      const request = Promise.all(
-        body.childIds.map((childId) =>
-          apiClient.post('/transactions/spend', {
-            campId: effectiveCampId!,
-            childId,
-            amount: body.amount,
-            reason: body.reason,
-            comment: body.comment,
-            metadata: body.metadata,
-            clientRequestId: `${batchRequestId}:${childId}`,
-          }),
-        ),
-      ).then(() => ({ count: body.childIds.length }))
+
+      const request = apiClient.post<{ count: number }>('/transactions/bulk-spend', {
+        ...body,
+        campId: effectiveCampId!,
+        clientRequestId: batchRequestId,
+      }).then((response) => response.data)
 
       inFlight.current.set(fingerprint, request)
 

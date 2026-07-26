@@ -5,33 +5,41 @@ import { useChildBalance, useChildren } from '../../features/children'
 import { useWorkerRewards, type RewardItem } from '../../features/rewards'
 import { useSquads } from '../../features/squads'
 import { useSearchChildren, useSpendCoins } from '../../features/transactions'
-import { BottomSheet } from '../../shared/ui'
+import { BottomSheet, Toast } from '../../shared/ui'
 
 function SpendSheet({
   child,
   items,
   onClose,
+  onSuccess,
+  onError,
+  isToastActive,
 }: {
   child: { id: string; firstName: string; lastName: string }
   items: RewardItem[]
   onClose: () => void
+  onSuccess: (message: string) => void
+  onError: (message: string) => void
+  isToastActive: boolean
 }) {
   const { data: balance = 0 } = useChildBalance(child.id)
   const [selected, setSelected] = useState<RewardItem | null>(null)
   const [comment, setComment] = useState('')
-  const [error, setError] = useState('')
   const { mutate: spend, isPending } = useSpendCoins()
 
   function handleSpend() {
     if (!selected) return
-    setError('')
     spend(
       { childId: child.id, amount: selected.price, reason: selected.name, comment: comment || undefined },
       {
-        onSuccess: onClose,
+        onSuccess: () => {
+          onSuccess(`${selected.name} списано за ${selected.price} ⭐`)
+          setTimeout(() => onClose(), 3500)
+        },
         onError: (err: unknown) => {
           const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-          setError(msg === 'Insufficient balance' ? 'Недостатньо балансу' : 'Помилка списання')
+          const errorMsg = msg === 'Insufficient balance' ? 'Недостатньо балансу' : 'Помилка списання'
+          onError(errorMsg)
         },
       },
     )
@@ -77,14 +85,9 @@ function SpendSheet({
             className="w-full px-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
             placeholder="Необов'язково" />
         </div>
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-            <p className="text-red-600 text-sm font-medium">❌ {error}</p>
-          </div>
-        )}
-        <button onClick={handleSpend} disabled={!selected || isPending}
+        <button onClick={handleSpend} disabled={!selected || isPending || isToastActive}
           className="w-full bg-violet-600 text-white font-semibold py-3.5 rounded-xl text-base disabled:opacity-40 active:scale-95 transition-transform">
-          {isPending ? 'Списання...' : selected ? <span className="inline-flex items-center justify-center gap-1"><Coins className="w-4 h-4 text-yellow-500" /> Списати {selected.price}</span> : 'Оберіть товар'}
+          {isPending || isToastActive ? 'Списання...' : selected ? <span className="inline-flex items-center justify-center gap-1"><Coins className="w-4 h-4 text-yellow-500" /> Списати {selected.price}</span> : 'Оберіть товар'}
         </button>
       </div>
     </BottomSheet>
@@ -100,6 +103,8 @@ export function SpendCoinsPage() {
   const [selectedChildOverride, setSelectedChildOverride] = useState<{ id: string; firstName: string; lastName: string } | null>(null)
   const [selectedRewardId, setSelectedRewardId] = useState<string | null>(null)
   const [selectedSquadId, setSelectedSquadId] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
+  const [isToastActive, setIsToastActive] = useState(false)
   const { data: squadChildren = [], isLoading: loadingSquadChildren } = useChildren(selectedSquadId ?? undefined)
   const selectedChildId = searchParams.get('childId')
 
@@ -313,8 +318,22 @@ export function SpendCoinsPage() {
           child={selectedChild}
           items={selectedReward.items}
           onClose={closeChildSheet}
+          onSuccess={(msg) => {
+            setToast({ message: msg, type: 'success' })
+            setIsToastActive(true)
+            setTimeout(() => {
+              setIsToastActive(false)
+              setToast(null)
+            }, 3000)
+          }}
+          onError={(msg) => {
+            setToast(null)
+            setTimeout(() => setToast({ message: msg, type: 'error' }), 100)
+          }}
+          isToastActive={isToastActive}
         />
       )}
+      {toast && <Toast message={toast.message} type={toast.type} duration={toast.type === 'error' ? 5000 : 3000} />}
     </div>
   )
 }

@@ -258,8 +258,8 @@ export function RulesPage() {
   const [editingRule, setEditingRule] = useState<CoinRule | null>(null)
   const navigate = useNavigate()
 
-  const active = rules?.filter((r) => r.isActive) ?? []
-  const inactive = rules?.filter((r) => !r.isActive) ?? []
+  const active = rules?.filter((r) => r.isActive && r.points > 0) ?? []
+  const inactive = rules?.filter((r) => !r.isActive && r.points > 0) ?? []
 
   return (
     <div className="p-4">

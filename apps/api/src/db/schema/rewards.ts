@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm'
-import { boolean, check, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core'
+import { boolean, check, integer, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core'
 import { camps } from './camps.js'
 import { users } from './users.js'
 
@@ -32,5 +32,19 @@ export const rewardItems = pgTable(
     createdAt: timestamp('created_at', { withTimezone: false }).defaultNow().notNull(),
   },
   (t) => [check('reward_items_price_positive_check', sql`${t.price} > 0`)],
+)
+
+export const rewardWorkers = pgTable(
+  'reward_workers',
+  {
+    rewardId: uuid('reward_id')
+      .references(() => rewards.id, { onDelete: 'cascade' })
+      .notNull(),
+    workerId: uuid('worker_id')
+      .references(() => users.id, { onDelete: 'cascade' })
+      .notNull(),
+    createdAt: timestamp('created_at', { withTimezone: false }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ name: 'reward_workers_reward_worker_pk', columns: [t.rewardId, t.workerId] })],
 )
 

@@ -6,6 +6,8 @@ import {
   leaderCanAccessChild,
   listTransactions,
   spendTalents,
+  bulkEarnTalents,
+  bulkSpendTalents,
 } from './transactions.service.js'
 
 const earnBody = z.object({
@@ -21,6 +23,26 @@ const earnBody = z.object({
 const spendBody = z.object({
   campId: z.string().uuid(),
   childId: z.string().uuid(),
+  amount: z.number().int().positive(),
+  reason: z.string().min(1),
+  comment: z.string().optional(),
+  clientRequestId: z.string().min(1).max(128).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+})
+
+const bulkEarnBody = z.object({
+  campId: z.string().uuid(),
+  childIds: z.array(z.string().uuid()).min(1),
+  amount: z.number().int().positive(),
+  reason: z.string().min(1),
+  comment: z.string().optional(),
+  clientRequestId: z.string().min(1).max(128).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+})
+
+const bulkSpendBody = z.object({
+  campId: z.string().uuid(),
+  childIds: z.array(z.string().uuid()).min(1),
   amount: z.number().int().positive(),
   reason: z.string().min(1),
   comment: z.string().optional(),
@@ -87,5 +109,59 @@ export async function registerTransactionsRoutes(app: FastifyInstance) {
     }
 
     return reply.code(201).send(result.tx)
+  })
+
+  // POST /transactions/bulk-earn — масове нарахування (транзакційне — все або нічого)
+  app.post('/bulk-earn', { preHandler: [requireAdminOrLeader] }, async (request, reply) => {
+    const parsed = bulkEarnBody.safeParse(request.body)
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'Invalid input', details: parsed.error.flatten() })
+    }
+
+    const { role, userId } = request.user
+
+    // Leader може нараховувати лише дітям з свого загону
+    if (role === 'Leader') {
+      for (const childId of parsed.data.childIds) {
+        const allowed = await leaderCanAccessChild(app, userId, childId)
+        if (!allowed) {
+          return reply.code(403).send({ error: 'You can only award talents to children in your squads' })
+        }
+      }
+    }
+
+    const result = await bulkEarnTalents(app, { ...parsed.data, actorUserId: userId })
+    if (!result.ok) {
+      return reply.code(422).send({ error: result.error, failedChildId: result.failedChildId })
+    }
+
+    return reply.code(201).send({ count: result.count })
+  })
+
+  // POST /transactions/bulk-spend — масове покарання (транзакційне — все або нічого)
+  app.post('/bulk-spend', { preHandler: [requireSpendRole] }, async (request, reply) => {
+    const parsed = bulkSpendBody.safeParse(request.body)
+    if (!parsed.success) {
+      return reply.code(400).send({ error: 'Invalid input', details: parsed.error.flatten() })
+    }
+
+    const { role, userId } = request.user
+
+    // Leader може списувати лише дітям зі своїх загонів
+    if (role === 'Leader') {
+      for (const childId of parsed.data.childIds) {
+        const allowed = await leaderCanAccessChild(app, userId, childId)
+        if (!allowed) {
+          return reply.code(403).send({ error: 'You can only spend talents for children in your squads' })
+        }
+      }
+    }
+
+    const result = await bulkSpendTalents(app, { ...parsed.data, actorUserId: userId })
+    if (!result.ok) {
+      return reply.code(422).send({ error: result.error, failedChildId: result.failedChildId })
+    }
+
+    return reply.code(201).send({ count: result.count })
   })
 }

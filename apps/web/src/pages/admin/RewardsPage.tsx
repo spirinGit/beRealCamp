@@ -11,6 +11,7 @@ import {
   useRewardDetail,
   useRewards,
   useToggleRewardItem,
+  useUnassignWorker,
   useUpdateReward,
   useUpdateRewardItem,
 } from '../../features/rewards'
@@ -204,14 +205,17 @@ function ShopDetailSheet({ reward, onClose }: { reward: Reward; onClose: () => v
   const { data: detail } = useRewardDetail(reward.id)
   const { data: users } = useUsers()
   const { mutate: assignWorker } = useAssignWorker(reward.id)
+  const { mutate: unassignWorker } = useUnassignWorker(reward.id)
   const { mutate: createItem, isPending: addingItem } = useCreateRewardItem(reward.id)
   const [newItem, setNewItem] = useState({ name: '', price: '' })
   const [showAddItem, setShowAddItem] = useState(false)
   const [showEdit, setShowEdit] = useState(false)
   const [editingItem, setEditingItem] = useState<RewardItem | null>(null)
 
-  const workers = users?.filter((u) => u.role === 'Worker' && u.isActive) ?? []
-  const assignedWorker = users?.find((u) => u.id === detail?.workerId)
+  const assignedWorkerIds = detail?.workerIds ?? []
+  const allWorkers = users?.filter((u) => u.role === 'Worker' && u.isActive) ?? []
+  const assignedWorkers = allWorkers.filter((u) => assignedWorkerIds.includes(u.id))
+  const availableWorkers = allWorkers.filter((u) => !assignedWorkerIds.includes(u.id))
 
   function handleAddItem(e: React.FormEvent) {
     e.preventDefault()
@@ -238,37 +242,41 @@ function ShopDetailSheet({ reward, onClose }: { reward: Reward; onClose: () => v
       </div>
 
       <div className="overflow-y-auto flex-1 px-6 pb-6 space-y-5">
-        {/* Assign Worker */}
+        {/* Assign Workers */}
         <div>
-          <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Воркер</p>
-          {assignedWorker ? (
-            <div className="flex items-center justify-between bg-green-50 rounded-xl px-4 py-3">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-green-200 flex items-center justify-center text-sm font-bold text-green-700 overflow-hidden">
-                  {assignedWorker.photoUrl
-                    ? <img src={assignedWorker.photoUrl} alt="" className="w-full h-full object-cover" />
-                    : `${assignedWorker.firstName[0]}${assignedWorker.lastName[0]}`}
-                </div>
-                <span className="text-sm font-medium text-gray-800">{assignedWorker.firstName} {assignedWorker.lastName}</span>
-              </div>
-              <button onClick={() => assignWorker(null)} className="text-xs text-gray-300 active:text-red-400">✕</button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {workers.length === 0 ? (
-                <p className="text-sm text-gray-400 italic">Немає воркерів. Спочатку створіть.</p>
-              ) : workers.map((w) => (
-                <button key={w.id} onClick={() => assignWorker(w.id)}
-                  className="w-full flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-2.5 active:bg-violet-50 text-left">
-                  <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-500 overflow-hidden">
-                    {w.photoUrl ? <img src={w.photoUrl} alt="" className="w-full h-full object-cover" /> : `${w.firstName[0]}${w.lastName[0]}`}
+          <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Воркери</p>
+          <div className="space-y-2">
+            {assignedWorkers.map((w) => (
+              <div key={w.id} className="flex items-center justify-between bg-green-50 rounded-xl px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-full bg-green-200 flex items-center justify-center text-sm font-bold text-green-700 overflow-hidden">
+                    {w.photoUrl
+                      ? <img src={w.photoUrl} alt="" className="w-full h-full object-cover" />
+                      : `${w.firstName[0]}${w.lastName[0]}`}
                   </div>
                   <span className="text-sm font-medium text-gray-800">{w.firstName} {w.lastName}</span>
-                  <span className="ml-auto text-violet-500">+</span>
-                </button>
-              ))}
-            </div>
-          )}
+                </div>
+                <button onClick={() => unassignWorker(w.id)} className="text-xs text-gray-300 active:text-red-400">✕</button>
+              </div>
+            ))}
+            {availableWorkers.length > 0 && (
+              <div className="space-y-1 pt-1">
+                {availableWorkers.map((w) => (
+                  <button key={w.id} onClick={() => assignWorker(w.id)}
+                    className="w-full flex items-center gap-3 bg-gray-50 rounded-xl px-3 py-2.5 active:bg-violet-50 text-left">
+                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-sm font-bold text-gray-500 overflow-hidden">
+                      {w.photoUrl ? <img src={w.photoUrl} alt="" className="w-full h-full object-cover" /> : `${w.firstName[0]}${w.lastName[0]}`}
+                    </div>
+                    <span className="text-sm font-medium text-gray-800">{w.firstName} {w.lastName}</span>
+                    <span className="ml-auto text-violet-500">+</span>
+                  </button>
+                ))}
+              </div>
+            )}
+            {allWorkers.length === 0 && (
+              <p className="text-sm text-gray-400 italic">Немає воркерів. Спочатку створіть.</p>
+            )}
+          </div>
         </div>
 
         {/* Items */}
@@ -375,8 +383,8 @@ export function RewardsPage() {
                 {r.description && <p className="text-sm text-gray-400 truncate">{r.description}</p>}
               </div>
               <div className="flex flex-col items-end gap-1">
-                {r.workerId
-                  ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Воркер є</span>
+                {(r.workerIds?.length ?? 0) > 0
+                  ? <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Воркерів: {r.workerIds.length}</span>
                   : <span className="text-xs bg-gray-100 text-gray-400 px-2 py-0.5 rounded-full">Без воркера</span>}
                 <span className="text-gray-300 text-lg">›</span>
               </div>
