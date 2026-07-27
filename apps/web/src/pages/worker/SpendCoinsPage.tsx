@@ -24,28 +24,60 @@ function SpendSheet({
 }) {
   const { data: balance = 0 } = useChildBalance(child.id)
   const [selected, setSelected] = useState<RewardItem | null>(null)
+  const [quantity, setQuantity] = useState(1)
   const [comment, setComment] = useState('')
+  const [itemQuery, setItemQuery] = useState('')
+  const [itemSort, setItemSort] = useState<'name' | 'price-asc' | 'price-desc'>('name')
   const { mutate: spend, isPending } = useSpendCoins()
+
+  const totalPrice = selected ? selected.price * quantity : 0
+  const canIncrease = selected ? totalPrice + selected.price <= balance : false
+  const canDecrease = quantity > 1
 
   function handleSpend() {
     if (!selected) return
+
+    const spendAmount = selected.price * quantity
     spend(
-      { childId: child.id, amount: selected.price, reason: selected.name, comment: comment || undefined },
+      {
+        childId: child.id,
+        amount: spendAmount,
+        reason: quantity > 1 ? `${selected.name} x${quantity}` : selected.name,
+        comment: comment || undefined,
+        metadata: {
+          itemId: selected.id,
+          itemName: selected.name,
+          unitPrice: selected.price,
+          quantity,
+          totalPrice: spendAmount,
+        },
+      },
       {
         onSuccess: () => {
-          onSuccess(`${selected.name} списано за ${selected.price} ⭐`)
+          onSuccess(quantity > 1 ? `${selected.name} x${quantity} списано за ${spendAmount} ⭐` : `${selected.name} списано за ${spendAmount} ⭐`)
           setTimeout(() => onClose(), 3500)
         },
         onError: (err: unknown) => {
           const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error
-          const errorMsg = msg === 'Insufficient balance' ? 'Недостатньо балансу' : 'Помилка списання'
+          const errorMsg = msg === 'Insufficient balance' ? 'Недостатньо балансу для цього списання' : 'Помилка списання'
           onError(errorMsg)
         },
       },
     )
   }
 
-  const activeItems = items.filter((i) => i.isActive)
+  const activeItems = useMemo(() => {
+    const query = itemQuery.trim().toLowerCase()
+    const filtered = items
+      .filter((i) => i.isActive)
+      .filter((i) => (query ? i.name.toLowerCase().includes(query) : true))
+
+    return [...filtered].sort((a, b) => {
+      if (itemSort === 'price-asc') return a.price - b.price || a.name.localeCompare(b.name)
+      if (itemSort === 'price-desc') return b.price - a.price || a.name.localeCompare(b.name)
+      return a.name.localeCompare(b.name)
+    })
+  }, [itemQuery, itemSort, items])
 
   return (
     <BottomSheet onClose={onClose} className="max-h-[85dvh] flex flex-col">
@@ -60,22 +92,93 @@ function SpendSheet({
       </div>
       <div className="overflow-y-auto flex-1 px-6 pb-6 space-y-3">
         <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Оберіть товар</p>
+        <div className="space-y-2">
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+            <input
+              value={itemQuery}
+              onChange={(e) => setItemQuery(e.target.value)}
+              className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
+              placeholder="Пошук товару..."
+              autoComplete="off"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Сортування</label>
+            <select
+              value={itemSort}
+              onChange={(e) => setItemSort(e.target.value as typeof itemSort)}
+              className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
+            >
+              <option value="name">За назвою</option>
+              <option value="price-asc">За ціною: від дешевших</option>
+              <option value="price-desc">За ціною: від дорожчих</option>
+            </select>
+          </div>
+        </div>
         {activeItems.length === 0 ? (
-          <p className="text-sm text-gray-400 italic">Позицій немає. Зверніться до адміна.</p>
+          <p className="text-sm text-gray-400 italic">
+            {itemQuery.trim() ? `Нічого не знайдено за "${itemQuery.trim()}"` : 'Позицій немає. Зверніться до адміна.'}
+          </p>
         ) : (
           <div className="space-y-2">
             {activeItems.map((item) => (
-              <button key={item.id} onClick={() => setSelected(item)}
-                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-colors text-left ${
+              <div
+                key={item.id}
+                onClick={() => {
+                  setSelected(item)
+                  setQuantity(1)
+                }}
+                className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border-2 transition-colors text-left cursor-pointer ${
                   selected?.id === item.id ? 'border-violet-500 bg-violet-50' : 'border-gray-100 bg-gray-50'
-                }`}>
-                <span className="text-sm font-medium text-gray-800">{item.name}</span>
-                <span className={`text-sm font-bold ${item.price > balance ? 'text-red-400' : 'text-violet-600'}`}>
-                  <span className="inline-flex items-center gap-1">
-                    <Coins className="w-4 h-4 text-yellow-500" /> {item.price}
-                  </span>
-                </span>
-              </button>
+                }`}
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium text-gray-800 truncate">{item.name}</p>
+                  {selected?.id === item.id && quantity > 1 && (
+                    <p className={`text-xs mt-1 font-semibold ${totalPrice > balance ? 'text-red-500' : 'text-violet-600'}`}>
+                      Разом: <span className="inline-flex items-center gap-1"><Coins className="w-3.5 h-3.5 text-yellow-500" /> {totalPrice}</span>
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {selected?.id === item.id ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setQuantity((prev) => Math.max(1, prev - 1))
+                        }}
+                        disabled={!canDecrease || isPending || isToastActive}
+                        className="w-8 h-8 rounded-full border border-gray-200 bg-white text-gray-700 disabled:opacity-35 disabled:cursor-not-allowed"
+                        aria-label="Зменшити кількість"
+                      >
+                        −
+                      </button>
+                      <div className="min-w-8 text-center text-sm font-semibold text-gray-900">x{quantity}</div>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (canIncrease) setQuantity((prev) => prev + 1)
+                        }}
+                        disabled={!canIncrease || isPending || isToastActive}
+                        className="w-8 h-8 rounded-full border border-violet-200 bg-violet-600 text-white disabled:opacity-35 disabled:cursor-not-allowed"
+                        aria-label="Збільшити кількість"
+                      >
+                        +
+                      </button>
+                    </>
+                  ) : (
+                    <span className={`text-sm font-bold ${item.price > balance ? 'text-red-400' : 'text-violet-600'}`}>
+                      <span className="inline-flex items-center gap-1">
+                        <Coins className="w-4 h-4 text-yellow-500" /> {item.price}
+                      </span>
+                    </span>
+                  )}
+                </div>
+              </div>
             ))}
           </div>
         )}
@@ -85,9 +188,25 @@ function SpendSheet({
             className="w-full px-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
             placeholder="Необов'язково" />
         </div>
-        <button onClick={handleSpend} disabled={!selected || isPending || isToastActive}
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-gray-500">Підсумок</span>
+          <span className={`font-bold ${totalPrice > balance ? 'text-red-500' : 'text-violet-600'}`}>
+            {selected ? (
+              <span className="inline-flex items-center gap-1">
+                <Coins className="w-4 h-4 text-yellow-500" /> {totalPrice}
+              </span>
+            ) : (
+              '0'
+            )}
+          </span>
+        </div>
+        <button onClick={handleSpend} disabled={!selected || isPending || isToastActive || totalPrice > balance}
           className="w-full bg-violet-600 text-white font-semibold py-3.5 rounded-xl text-base disabled:opacity-40 active:scale-95 transition-transform">
-          {isPending || isToastActive ? 'Списання...' : selected ? <span className="inline-flex items-center justify-center gap-1"><Coins className="w-4 h-4 text-yellow-500" /> Списати {selected.price}</span> : 'Оберіть товар'}
+          {isPending || isToastActive
+            ? 'Списання...'
+            : selected
+              ? <span className="inline-flex items-center justify-center gap-1"><Coins className="w-4 h-4 text-yellow-500" /> Списати {totalPrice}</span>
+              : 'Оберіть товар'}
         </button>
       </div>
     </BottomSheet>
@@ -99,6 +218,7 @@ export function SpendCoinsPage() {
   const { data: rewards, isLoading: loadingReward } = useWorkerRewards()
   const { data: squads = [] } = useSquads()
   const [q, setQ] = useState('')
+  const [squadQuery, setSquadQuery] = useState('')
   const { data: results, isFetching } = useSearchChildren(q)
   const [selectedChildOverride, setSelectedChildOverride] = useState<{ id: string; firstName: string; lastName: string } | null>(null)
   const [selectedRewardId, setSelectedRewardId] = useState<string | null>(null)
@@ -123,6 +243,15 @@ export function SpendCoinsPage() {
   const rewardList = rewards ?? []
   const selectedReward =
     rewardList.find((reward) => reward.id === selectedRewardId) ?? rewardList[0] ?? null
+  const filteredSquadChildren = useMemo(() => {
+    const query = squadQuery.trim().toLowerCase()
+    if (!query) return squadChildren
+
+    return squadChildren.filter((child) => {
+      const fullName = `${child.firstName} ${child.lastName}`.toLowerCase()
+      return fullName.includes(query)
+    })
+  }, [squadChildren, squadQuery])
   const selectedChild = useMemo(() => {
     if (!selectedChildId) return null
     if (selectedChildOverride?.id === selectedChildId) return selectedChildOverride
@@ -277,6 +406,20 @@ export function SpendCoinsPage() {
 
         {selectedSquadId && (
           <div className="space-y-2">
+            <div className="mb-3">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Пошук у загоні</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
+                <input
+                  value={squadQuery}
+                  onChange={(e) => setSquadQuery(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 text-base focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  placeholder="Ім'я або прізвище..."
+                  autoComplete="off"
+                />
+              </div>
+            </div>
+
             {loadingSquadChildren && (
               <div className="text-sm text-gray-400 text-center py-4">Завантаження дітей...</div>
             )}
@@ -287,8 +430,14 @@ export function SpendCoinsPage() {
               </div>
             )}
 
+            {!loadingSquadChildren && squadChildren.length > 0 && filteredSquadChildren.length === 0 && (
+              <div className="text-sm text-gray-400 text-center py-6">
+                <p>Нікого не знайдено за "{squadQuery.trim()}"</p>
+              </div>
+            )}
+
             {!loadingSquadChildren &&
-              squadChildren.map((child) => (
+              filteredSquadChildren.map((child) => (
                 <button
                   key={child.id}
                   onClick={() =>

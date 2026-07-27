@@ -1,4 +1,4 @@
-﻿import { useMemo } from 'react'
+﻿import { useMemo, useState } from 'react'
 import { Coins } from 'lucide-react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../features/auth/AuthContext'
@@ -223,6 +223,8 @@ export function ChildHistoryPage() {
   const { user } = useAuth()
   const { data: children, isLoading: childrenLoading } = useChildren()
   const { data: allTransactions = [], isLoading: txLoading } = useTransactions()
+  const [sortField, setSortField] = useState<'firstName' | 'lastName'>('firstName')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
   const selectedChildId = searchParams.get('childId')
   const activeTab: HistoryTab = searchParams.get('tab') === 'history' ? 'history' : 'children'
   const searchQuery = searchParams.get('q') ?? ''
@@ -248,12 +250,24 @@ export function ChildHistoryPage() {
 
   const filteredChildren = useMemo(() => {
     const normalizedQuery = normalize(searchQuery)
-    if (!normalizedQuery) return childrenList
-
-    return childrenList.filter((child) =>
+    const filtered = !normalizedQuery
+      ? childrenList
+      : childrenList.filter((child) =>
       normalize(`${child.firstName} ${child.lastName}`).includes(normalizedQuery),
-    )
-  }, [childrenList, searchQuery])
+      )
+
+    const direction = sortDirection === 'asc' ? 1 : -1
+    return [...filtered].sort((a, b) => {
+      const left = (a[sortField] ?? '').toString().trim().toLowerCase()
+      const right = (b[sortField] ?? '').toString().trim().toLowerCase()
+      const primary = left.localeCompare(right, 'uk') * direction
+      if (primary !== 0) return primary
+
+      const fallbackLeft = `${a.firstName} ${a.lastName}`.trim().toLowerCase()
+      const fallbackRight = `${b.firstName} ${b.lastName}`.trim().toLowerCase()
+      return fallbackLeft.localeCompare(fallbackRight, 'uk') * direction
+    })
+  }, [childrenList, searchQuery, sortDirection, sortField])
 
   const filteredTransactions = useMemo(() => {
     const normalizedQuery = normalize(searchQuery)
@@ -337,6 +351,47 @@ export function ChildHistoryPage() {
           />
         </div>
       </div>
+
+      {activeTab === 'children' && filteredChildren.length > 1 && (
+        <div className="flex items-center gap-2 mb-4">
+          <button
+            type="button"
+            onClick={() => {
+              if (sortField === 'firstName') {
+                setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+              } else {
+                setSortField('firstName')
+                setSortDirection('asc')
+              }
+            }}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+              sortField === 'firstName'
+                ? 'border-violet-500 bg-violet-50 text-violet-700'
+                : 'border-gray-200 text-gray-600'
+            }`}
+          >
+            Ім&apos;я {sortField === 'firstName' ? (sortDirection === 'asc' ? 'A→Z' : 'Z→A') : ''}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (sortField === 'lastName') {
+                setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+              } else {
+                setSortField('lastName')
+                setSortDirection('asc')
+              }
+            }}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+              sortField === 'lastName'
+                ? 'border-violet-500 bg-violet-50 text-violet-700'
+                : 'border-gray-200 text-gray-600'
+            }`}
+          >
+            Прізвище {sortField === 'lastName' ? (sortDirection === 'asc' ? 'A→Z' : 'Z→A') : ''}
+          </button>
+        </div>
+      )}
 
       {activeTab === 'children' ? (
         childrenLoading ? (
