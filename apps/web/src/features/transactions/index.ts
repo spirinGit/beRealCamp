@@ -32,6 +32,7 @@ export interface CoinRule {
 export interface TransactionRuleMetadata {
   rulePhotoUrl?: string | null
   ruleDescription?: string | null
+  [key: string]: unknown
 }
 
 type SingleTransactionBody = {

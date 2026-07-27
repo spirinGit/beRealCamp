@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useCurrentCampPublicCode } from '../../features/camps'
 import { useBulkMarkAttendance, useMarkAttendance, useSquadAttendance } from '../../features/attendance'
@@ -1121,8 +1121,25 @@ function SquadChildren({
   const [bulkPenaltyOpen, setBulkPenaltyOpen] = useState(false)
   const [isBulkMode, setIsBulkMode] = useState(false)
   const [selectedChildIds, setSelectedChildIds] = useState<string[]>([])
+  const [sortField, setSortField] = useState<'firstName' | 'lastName'>('firstName')
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
-  const childList = children ?? []
+  const childList = useMemo(() => {
+    const list = [...(children ?? [])]
+    const direction = sortDirection === 'asc' ? 1 : -1
+
+    return list.sort((a, b) => {
+      const left = (a[sortField] ?? '').toString().trim().toLowerCase()
+      const right = (b[sortField] ?? '').toString().trim().toLowerCase()
+      const bySelectedField = left.localeCompare(right, 'uk') * direction
+      if (bySelectedField !== 0) return bySelectedField
+
+      const fallbackLeft = a.firstName.trim().toLowerCase() + ' ' + a.lastName.trim().toLowerCase()
+      const fallbackRight = b.firstName.trim().toLowerCase() + ' ' + b.lastName.trim().toLowerCase()
+      return fallbackLeft.localeCompare(fallbackRight, 'uk') * direction
+    })
+  }, [children, sortDirection, sortField])
+
   const earnFor = selectedChildId ? childList.find((child) => child.id === selectedChildId) ?? null : null
   const selectedChildren = childList.filter((child) => selectedChildIds.includes(child.id))
   const canMarkToday = !!attendanceOverview?.today && attendanceOverview.days.includes(attendanceOverview.today)
@@ -1198,6 +1215,47 @@ function SquadChildren({
           </button>
         )}
       </div>
+
+      {!isLoading && childList.length > 1 && (
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (sortField === 'firstName') {
+                setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+              } else {
+                setSortField('firstName')
+                setSortDirection('asc')
+              }
+            }}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+              sortField === 'firstName'
+                ? 'border-violet-500 bg-violet-50 text-violet-700'
+                : 'border-gray-200 text-gray-600'
+            }`}
+          >
+            Ім&apos;я {sortField === 'firstName' ? (sortDirection === 'asc' ? 'A→Z' : 'Z→A') : ''}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (sortField === 'lastName') {
+                setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+              } else {
+                setSortField('lastName')
+                setSortDirection('asc')
+              }
+            }}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+              sortField === 'lastName'
+                ? 'border-violet-500 bg-violet-50 text-violet-700'
+                : 'border-gray-200 text-gray-600'
+            }`}
+          >
+            Прізвище {sortField === 'lastName' ? (sortDirection === 'asc' ? 'A→Z' : 'Z→A') : ''}
+          </button>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="h-12 bg-gray-100 rounded-xl animate-pulse" />
