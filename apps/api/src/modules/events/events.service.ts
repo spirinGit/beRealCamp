@@ -66,22 +66,24 @@ async function resolveEventSquad(
       const txType = args.status === 'completed' ? 'earn' : 'spend'
       const reason = `${event.title}: ${args.status === 'completed' ? 'виконано' : 'невиконано'}`
 
-      await tx.insert(coinTransactions).values(
-        squadChildren.map((child) => ({
-          campId: args.campId,
-          childId: child.id,
-          actorUserId: args.actorUserId,
-          type: txType,
-          amount,
-          reason,
-          comment: null,
-          metadata: {
-            eventId: args.eventId,
-            squadId: args.squadId,
-            outcome: args.status,
-          },
-        })),
-      )
+      if (amount !== 0) {
+        await tx.insert(coinTransactions).values(
+          squadChildren.map((child) => ({
+            campId: args.campId,
+            childId: child.id,
+            actorUserId: args.actorUserId,
+            type: txType,
+            amount,
+            reason,
+            comment: null,
+            metadata: {
+              eventId: args.eventId,
+              squadId: args.squadId,
+              outcome: args.status,
+            },
+          })),
+        )
+      }
     }
 
     return { ok: true as const }
@@ -137,14 +139,15 @@ export async function settleExpiredEventSquads(app: FastifyInstance, campId: str
         .from(children)
         .where(and(eq(children.campId, campId), eq(children.squadId, item.squadId)))
 
-      if (squadChildren.length > 0) {
+      const amount = -Math.abs(item.penaltyPoints)
+      if (squadChildren.length > 0 && amount !== 0) {
         await tx.insert(coinTransactions).values(
           squadChildren.map((child) => ({
             campId,
             childId: child.id,
             actorUserId: null,
             type: 'spend',
-            amount: -Math.abs(item.penaltyPoints),
+            amount,
             reason: `${item.title}: невиконано`,
             comment: null,
             metadata: {
